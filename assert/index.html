@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>使用说明</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .tab {
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            display: inline-block;
+            border-bottom: none;
+        }
+
+        .tab.active {
+            background-color: white;
+            border-top: 2px solid blue;
+        }
+
+        .tab-content {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: white;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .command {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            font-family: 'Courier New', Courier, monospace;
+            position: relative;
+            margin-top: 10px;
+        }
+        .command:hover .copy-btn,
+        .command .copy-btn:focus,
+        .command .copy-btn:active {
+            display: block;
+        }
+
+        .copy-btn {
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            padding: 5px 10px;
+            color: black;
+            border: 1px solid #bbb;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 800px;
+            margin: 20px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tab-container">
+        <div class="tab active" onclick="openTab('Linux')">Linux</div>
+        <div class="tab" onclick="openTab('macOS')">macOS</div>
+        <div class="tab" onclick="openTab('Windows')">Windows</div>
+    </div>
+
+    <div id="Linux" class="tab-content active">
+        <h3>文件上传</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>echo [filePath] | xargs -i curl -F "file=@{}" {{.UploadAddress}}</code></pre>
+        </div>
+        <h3>文件下载</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>wget {{.DownloadAddress}} -O [filePath]</code></pre>
+        </div>
+    </div>
+
+    <div id="macOS" class="tab-content">
+        <h3>文件上传</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>echo [filePath] | xargs -I {} curl -F "file=@{}" {{.UploadAddress}}</code></pre>
+        </div>
+        <h3>文件下载</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>wget {{.DownloadAddress}} -O [filePath]</code></pre>
+        </div>
+    </div>
+
+    <div id="Windows" class="tab-content">
+        <h3>文件上传 (PowerShell)</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>Invoke-WebRequest -Uri {{.UploadAddress}} -Method Post -InFile [filePath]</code></pre>
+        </div>
+        <h3>文件下载 (PowerShell)</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>Invoke-WebRequest -Uri {{.DownloadAddress}} -OutFile [filePath]</code></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openTab(osName) {
+        var i, tabcontent, tabs;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+
+        tabs = document.getElementsByClassName("tab");
+        for (i = 0; i < tabs.length; i++) {
+            tabs[i].className = tabs[i].className.replace(" active", "");
+        }
+
+        document.getElementById(osName).style.display = "block";
+        event.currentTarget.className += " active";
+    }
+
+    function copyToClipboard(btn) {
+        var commandText = btn.nextElementSibling.innerText;
+        navigator.clipboard.writeText(commandText).then(function () {
+            // Copy success action
+            btn.textContent = '已复制!';
+            setTimeout(function () {
+                btn.textContent = '复制';
+            }, 2000);
+        }, function (err) {
+            // Copy failed action
+            btn.textContent = '复制失败';
+        });
+    }
+</script>
+
+</body>
+</html>
+
+
