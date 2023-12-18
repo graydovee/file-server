@@ -6,6 +6,7 @@ import (
 	"github.com/graydovee/fileManager/pkg/internal"
 	"log"
 	"net/http"
+	"path/filepath"
 )
 
 type HttpServer struct {
@@ -26,8 +27,8 @@ func NewHttpServer(cfg *config.Config) (*HttpServer, error) {
 
 func (s *HttpServer) Run() error {
 	s.engine = gin.Default()
-	s.engine.LoadHTMLGlob("template/*")
-	s.engine.Static("/assert", "./assert")
+	s.engine.LoadHTMLGlob(filepath.Join(s.cfg.TemplateDir, "*"))
+	s.engine.Static("/assert", s.cfg.StaticDir)
 
 	if err := internal.NewFileServer(s.cfg).Setup(s.engine); err != nil {
 		return err

@@ -8,8 +8,9 @@ type Config struct {
 	Address   string
 	EnableTls bool
 
-	StaticDir string
-	UploadDir string
+	UploadDir   string
+	StaticDir   string
+	TemplateDir string
 }
 
 func (c *Config) Build() error {

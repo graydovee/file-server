@@ -14,8 +14,9 @@ func main() {
 var (
 	cfg config.Config
 
-	defaultUploadDir = "./uploads"
-	defaultStaticDir = "./static"
+	defaultUploadDir   = "./uploads"
+	defaultStaticDir   = "./assert"
+	defaultTemplateDir = "./template"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -46,8 +47,9 @@ func Execute() {
 
 func init() {
 	f := rootCmd.Flags()
-	f.StringVarP(&cfg.StaticDir, "static-dir", "s", defaultStaticDir, "static file directory")
-	f.StringVarP(&cfg.UploadDir, "upload-dir", "u", defaultUploadDir, "file upload directory")
+	f.StringVar(&cfg.StaticDir, "static-dir", defaultStaticDir, "static file directory")
+	f.StringVar(&cfg.UploadDir, "upload-dir", defaultUploadDir, "file upload directory")
+	f.StringVar(&cfg.TemplateDir, "template-dir", defaultTemplateDir, "template file directory")
 	f.StringVarP(&cfg.Address, "address", "a", ":8080", "server listen address")
 	f.BoolVarP(&cfg.EnableTls, "tls", "t", false, "enable https")
 }
