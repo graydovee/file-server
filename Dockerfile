@@ -13,10 +13,11 @@ COPY cmd/ cmd/
 COPY pkg/ pkg/
 
 
-RUN CGO_ENABLED=0 go build -ldflags "-X 'main.defaultUploadDir=/data/uploads'" -o /fileManager cmd/main.go
+RUN CGO_ENABLED=0 go build -ldflags "-X 'main.defaultUploadDir=/data/uploads'" -o /fileserver cmd/main.go
 
 FROM alpine:3.16
 WORKDIR /bin
-COPY --from=builder /fileManager .
+COPY --from=builder /fileserver .
+COPY template ./template
 COPY assert ./assert
-ENTRYPOINT ["/bin/fileManager"]
+ENTRYPOINT ["/bin/fileserver"]

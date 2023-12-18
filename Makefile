@@ -8,4 +8,5 @@ clean:
 
 .PHONY: docker-build
 docker-build:
-	docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG} -t ${REPO}:latest --push .
+	docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG} --push .
+	docker buildx build --platform linux/amd64,linux/arm64 -t ${REPO}:latest --push .
