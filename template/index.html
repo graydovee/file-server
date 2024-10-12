@@ -49,6 +49,7 @@
             position: relative;
             margin-top: 10px;
         }
+
         .command:hover .copy-btn,
         .command .copy-btn:focus,
         .command .copy-btn:active {
@@ -88,12 +89,30 @@
     </div>
 
     <div id="Linux" class="tab-content active">
-        <h3>文件上传</h3>
+        <h3>通过函数上传文件</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>#定义上传文件函数
+upload_file() {
+    local filename="$1"
+    shift
+    curl {{.UploadAddress}} \
+        --progress-bar \
+        -H "X-Filename: $(basename $filename)" \
+        -T "$filename" \
+        "$@" | cat
+}</code></pre>
+        </div>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>upload_file filename</code></pre>
+        </div>
+        <h3>直接上传文件</h3>
         <div class="command">
             <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
             <pre><code>echo [filePath] | xargs -i curl -F "file=@{}" {{.UploadAddress}}</code></pre>
         </div>
-        <h3>文件下载</h3>
+        <h3>下载文件</h3>
         <div class="command">
             <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
             <pre><code>wget {{.DownloadAddress}} -O [filePath]</code></pre>
@@ -101,12 +120,30 @@
     </div>
 
     <div id="macOS" class="tab-content">
-        <h3>文件上传</h3>
+        <h3>通过函数上传文件</h3>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>#定义上传文件函数
+upload_file() {
+    local filename="$1"
+    shift
+    curl {{.UploadAddress}} \
+        --progress-bar \
+        -H "X-Filename: $(basename $filename)" \
+        -T "$filename" \
+        "$@" | cat
+}</code></pre>
+        </div>
+        <div class="command">
+            <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
+            <pre><code>upload_file filename</code></pre>
+        </div>
+        <h3>直接上传文件</h3>
         <div class="command">
             <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
             <pre><code>echo [filePath] | xargs -I {} curl -F "file=@{}" {{.UploadAddress}}</code></pre>
         </div>
-        <h3>文件下载</h3>
+        <h3>下载文件</h3>
         <div class="command">
             <button class="copy-btn" onclick="copyToClipboard(this)">复制</button>
             <pre><code>wget {{.DownloadAddress}} -O [filePath]</code></pre>

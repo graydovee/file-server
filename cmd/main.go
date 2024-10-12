@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/graydovee/fileManager/pkg"
+	"github.com/graydovee/fileManager/pkg/config"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -11,9 +12,11 @@ func main() {
 }
 
 var (
-	address   string
-	uploadDir string
-	tls       bool
+	cfg config.Config
+
+	defaultUploadDir   = "./uploads"
+	defaultStaticDir   = "./assert"
+	defaultTemplateDir = "./template"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -23,7 +26,7 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		server, err := pkg.NewFileServer(address, uploadDir, tls)
+		server, err := pkg.NewHttpServer(&cfg)
 		if err != nil {
 			panic(err)
 		}
@@ -42,10 +45,12 @@ func Execute() {
 	}
 }
 
-var defaultUploadDir = "./uploads"
-
 func init() {
-	rootCmd.Flags().StringVarP(&uploadDir, "upload-dir", "u", defaultUploadDir, "file upload directory")
-	rootCmd.Flags().StringVarP(&address, "address", "a", ":8080", "server listen address")
-	rootCmd.Flags().BoolVarP(&tls, "tls", "t", false, "enable https")
+	f := rootCmd.Flags()
+	f.StringVar(&cfg.StaticDir, "static-dir", defaultStaticDir, "static file directory")
+	f.StringVar(&cfg.UploadDir, "upload-dir", defaultUploadDir, "file upload directory")
+	f.StringVar(&cfg.TemplateDir, "template-dir", defaultTemplateDir, "template file directory")
+	f.StringVarP(&cfg.Address, "address", "a", ":8080", "server listen address")
+	f.BoolVarP(&cfg.EnableTls, "tls", "t", false, "enable https")
+	f.StringVar(&cfg.InternalHost, "internal-host", os.Getenv("INTERNAL_HOST"), "internal host")
 }

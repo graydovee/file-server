@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>提交代码</title>
+    <link rel="stylesheet" href="/assert/css/bootstrap.min.css">
+    <style>
+        #code {
+            overflow: auto;
+            resize: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <h2>提交代码</h2>
+    <form action="/code" method="post">
+        <div class="form-group">
+            <label for="code">代码:</label>
+            <textarea class="form-control" id="code" name="code" rows="10"></textarea>
+        </div>
+
+        <div class="form-row align-items-center">
+            <div class="col-auto">
+                <label for="language" class="mr-sm-2">选择语言:</label>
+            </div>
+
+            <div class="col-auto">
+                <select class="form-control" id="language" name="language">
+                    {{ range $key, $value := .ExtMap }}
+                    <option value="{{ $key }}">{{ $key }}</option>
+                    {{ end }}
+                </select>
+            </div>
+
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">提交</button>
+            </div>
+
+        </div>
+
+    </form>
+</div>
+<script src="/assert/js/bootstrap.min.js"></script>
+</body>
+</html>

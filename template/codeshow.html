@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Code Display</title>
+    <link rel="stylesheet" href="/assert/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/assert/css/highlight.js.min.css">
+    <style>
+        pre {
+            display: flex;
+            line-height: 1.5;
+        }
+
+        .line-numbers {
+            text-align: right;
+            border-right: 1px solid #ccc;
+            color: #999;
+            user-select: none;
+            padding-right: 10px;
+        }
+
+        .code-block {
+            flex-grow: 1;
+        }
+
+        /* for block of numbers */
+        .hljs-ln-numbers {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+
+            text-align: center;
+            color: #ccc;
+            border-right: 1px solid #CCC;
+            vertical-align: top;
+            padding-right: 5px !important;
+
+        }
+
+        .hljs-ln-code {
+            padding-left: 5px !important;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <h2>Code Display</h2>
+    <pre><div class="line-numbers"></div><code class="language-{{.Language}} code-block">{{.Code}}</code></pre>
+</div>
+<script src="/assert/js/bootstrap.min.js"></script>
+<script src="/assert/js/highlight.min.js"></script>
+<script src="/assert/js/highlightjs-line-numbers.min.js"></script>
+<script>
+    hljs.highlightAll();
+    hljs.initLineNumbersOnLoad();
+</script>
+</body>
+</html>

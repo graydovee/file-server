@@ -1,4 +1,4 @@
-TAG?=0.0.1
+TAG?=0.0.5
 # Image URL to use all building/pushing image targets
 REPO?=graydovee/fileserver
 IMG?=$(REPO):$(TAG)
@@ -8,4 +8,8 @@ clean:
 
 .PHONY: docker-build
 docker-build:
+	docker build -t ${IMG} .
+
+.PHONY: docker-release
+docker-release:
 	docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG} -t ${REPO}:latest --push .
