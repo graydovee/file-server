@@ -8,6 +8,8 @@ type Config struct {
 	Address   string
 	EnableTls bool
 
+	InternalHost string
+
 	UploadDir   string
 	StaticDir   string
 	TemplateDir string

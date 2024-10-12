@@ -52,4 +52,5 @@ func init() {
 	f.StringVar(&cfg.TemplateDir, "template-dir", defaultTemplateDir, "template file directory")
 	f.StringVarP(&cfg.Address, "address", "a", ":8080", "server listen address")
 	f.BoolVarP(&cfg.EnableTls, "tls", "t", false, "enable https")
+	f.StringVar(&cfg.InternalHost, "internal-host", os.Getenv("INTERNAL_HOST"), "internal host")
 }

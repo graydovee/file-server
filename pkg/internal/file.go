@@ -26,7 +26,8 @@ func NewFileServer(cfg *config.Config) *FilerServer {
 
 func (f *FilerServer) Setup(s *gin.Engine) error {
 	s.GET("/", f.handleHelpPage)
-	s.POST("/upload", f.uploadFileHandler)
+	s.POST("/upload", f.uploadFileHandlerByForm)
+	s.PUT("/upload", f.uploadFileHandlerByStream)
 	s.GET("/download/*file", f.downloadFileHandler)
 	log.Printf("Upload directory: %s\n", f.cfg.UploadDir)
 	return nil
@@ -35,24 +36,52 @@ func (f *FilerServer) Setup(s *gin.Engine) error {
 func (f *FilerServer) handleHelpPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"UploadAddress":   getUploadAddress(c.Request.Host, f.cfg.EnableTls),
-		"DownloadAddress": getDownloadAddress(c.Request.Host, "[year]/[month]/[file_name]", f.cfg.EnableTls),
+		"DownloadAddress": getDownloadUrl(c.Request.Host, "[year]/[month]/[file_name]", f.cfg.EnableTls),
 	})
 }
 
-func (f *FilerServer) uploadFileHandler(c *gin.Context) {
-	log.Printf("File uploaded")
+func (f *FilerServer) uploadFileHandlerByForm(c *gin.Context) {
+	log.Printf("File uploaded by form")
 
-	// Parse uploaded file
-	file, header, err := c.Request.FormFile("file")
+	contentType := c.Request.Header.Get("Content-Type")
+
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		log.Printf("Unsupported content type: %s\n", contentType)
+		c.String(http.StatusBadRequest, "Unsupported content type")
+		return
+	}
+
+	// Handle form file upload
+	formFile, header, err := c.Request.FormFile("file")
 	if err != nil {
 		log.Printf("Error retrieving the file: %s\n", err.Error())
 		c.String(http.StatusInternalServerError, "Error retrieving the file")
 		return
 	}
-	defer file.Close()
+	defer formFile.Close()
+
+	f.saveFile(formFile, header.Filename, c)
+}
+
+func (f *FilerServer) uploadFileHandlerByStream(c *gin.Context) {
+	log.Printf("File uploaded by stream")
+
+	// Handle direct file upload
+	file := c.Request.Body
+	fileName := c.Request.Header.Get("X-Filename")
+	if fileName == "" {
+		log.Printf("Error: X-Filename header is missing")
+		c.String(http.StatusBadRequest, "X-Filename header is missing")
+		return
+	}
+
+	f.saveFile(file, fileName, c)
+}
+
+func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c *gin.Context) {
 
 	// Generate UUID for filename and remove dashes
-	newFileName := strings.ReplaceAll(uuid.New().String(), "-", "") + filepath.Ext(header.Filename)
+	newFileName := strings.ReplaceAll(uuid.New().String(), "-", "") + "-" + filename
 
 	// Create directory structure based on current year and month
 	now := time.Now()
@@ -85,8 +114,23 @@ func (f *FilerServer) uploadFileHandler(c *gin.Context) {
 		return
 	}
 
-	log.Printf("File %s uploaded successfully: %s\n", header.Filename, filePath)
-	c.String(http.StatusOK, "File uploaded successfully.\nDownload command:\n\twget %s -O %s\n", getDownloadAddress(c.Request.Host, filePath, f.cfg.EnableTls), header.Filename)
+	log.Printf("File %s uploaded successfully: %s\n", filename, filePath)
+
+	downloadUrl := getDownloadUrl(c.Request.Host, filePath, f.cfg.EnableTls)
+	respData := fmt.Sprintf(`
+File uploaded successfully.
+
+Download command:
+	wget %s -O %s
+`, downloadUrl, filename)
+	internalDownloadUrl := getDownloadUrl(getInternalHost(f.cfg.Address, f.cfg.InternalHost), filePath, false)
+	if internalDownloadUrl != downloadUrl {
+		respData += fmt.Sprintf(`
+Internal download command:
+	wget %s -O %s
+`, internalDownloadUrl, filename)
+	}
+	c.String(http.StatusOK, respData)
 }
 
 func (f *FilerServer) downloadFileHandler(c *gin.Context) {
@@ -108,7 +152,7 @@ func getUploadAddress(host string, enableTls bool) string {
 	return fmt.Sprintf("%s://%s/upload", schema, host)
 }
 
-func getDownloadAddress(host, filePath string, enableTls bool) string {
+func getDownloadUrl(host, filePath string, enableTls bool) string {
 	var schema string
 	if enableTls {
 		schema = "https"
@@ -116,4 +160,20 @@ func getDownloadAddress(host, filePath string, enableTls bool) string {
 		schema = "http"
 	}
 	return fmt.Sprintf("%s://%s/download/%s", schema, host, filePath)
+}
+
+func getInternalHost(listenAddr, overrideHost string) string {
+	sp := strings.Split(listenAddr, ":")
+	if len(sp) != 2 {
+		return overrideHost
+	}
+	port := sp[1]
+	host := sp[0]
+	if overrideHost != "" {
+		host = overrideHost
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	return fmt.Sprintf("%s:%s", host, port)
 }
