@@ -92,6 +92,10 @@ func (s *S3Store) DeleteFile(ctx context.Context, filePath string) error {
 }
 
 func (s *S3Store) FileExists(ctx context.Context, file string) (bool, error) {
+	if file == "" {
+		return false, nil
+	}
+
 	_, err := s.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &s.cfg.Bucket,
 		Key:    &file,

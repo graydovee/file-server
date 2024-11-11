@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -46,19 +45,19 @@ func (f *FilerServer) handleHelpPage(c echo.Context) error {
 }
 
 func (f *FilerServer) uploadFileHandlerByForm(c echo.Context) error {
-	log.Printf("File uploaded by form")
+	c.Logger().Printf("File uploaded by form")
 
 	contentType := c.Request().Header.Get("Content-Type")
 
 	if !strings.HasPrefix(contentType, "multipart/form-data") {
-		log.Printf("Unsupported content type: %s\n", contentType)
+		c.Logger().Errorf("Unsupported content type: %s", contentType)
 		return c.String(http.StatusBadRequest, "Unsupported content type")
 	}
 
 	// Handle form file upload
 	formFile, header, err := c.Request().FormFile("file")
 	if err != nil {
-		log.Printf("Error retrieving the file: %s\n", err.Error())
+		c.Logger().Errorf("Error retrieving the file: %s", err.Error())
 		return c.String(http.StatusInternalServerError, "Error retrieving the file")
 	}
 	defer formFile.Close()
@@ -67,13 +66,13 @@ func (f *FilerServer) uploadFileHandlerByForm(c echo.Context) error {
 }
 
 func (f *FilerServer) uploadFileHandlerByStream(c echo.Context) error {
-	log.Printf("File uploaded by stream")
+	c.Logger().Printf("File uploaded by stream")
 
 	// Handle direct file upload
 	file := c.Request().Body
 	fileName := c.Request().Header.Get("X-Filename")
 	if fileName == "" {
-		log.Printf("Error: X-Filename header is missing")
+		c.Logger().Errorf("Error: X-Filename header is missing")
 		return c.String(http.StatusBadRequest, "X-Filename header is missing")
 	}
 
@@ -92,11 +91,11 @@ func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c echo.Conte
 	// Upload to Store
 	err := f.store.UploadFile(context.Background(), file, filePath)
 	if err != nil {
-		log.Printf("Error uploading the file %s to store: %s\n", filename, err.Error())
+		c.Logger().Errorf("Error uploading the file %s to store: %s", filename, err.Error())
 		return c.String(http.StatusInternalServerError, "Error uploading the file to the store")
 	}
 
-	log.Printf("File %s uploaded successfully to store: %s\n", filename, filePath)
+	c.Logger().Printf("File %s uploaded successfully to store: %s", filename, filePath)
 
 	downloadUrl := getDownloadUrl(c.Request().Host, EscapeUrlPath(filePath), f.cfg.EnableTls)
 
@@ -123,11 +122,11 @@ Internal download command:
 func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 	file := strings.TrimPrefix(c.Param("*"), "/")
 
-	log.Printf("Download file: %s\n", file)
+	c.Logger().Printf("Download file: %s", file)
 
 	exists, err := f.store.FileExists(context.Background(), file)
 	if err != nil {
-		log.Printf("Error checking the file %s: %s\n", file, err.Error())
+		c.Logger().Errorf("Error checking the file %s: %s", file, err.Error())
 		return c.String(http.StatusInternalServerError, "Error checking the file")
 	}
 
@@ -135,7 +134,7 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 		// file list page
 		dirs, files, err := f.store.List(context.Background(), file)
 		if err != nil {
-			log.Printf("Error listing the file %s: %s\n", file, err.Error())
+			c.Logger().Errorf("Error listing the file %s: %s", file, err.Error())
 			return c.String(http.StatusInternalServerError, "Error listing the file")
 		}
 
@@ -157,7 +156,7 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 	// Stream the file
 	err = f.store.DownloadFile(context.Background(), c.Response().Writer, file)
 	if err != nil {
-		log.Printf("Error downloading the file %s: %s\n", file, err.Error())
+		c.Logger().Errorf("Error downloading the file %s: %s", file, err.Error())
 		return err // You may choose to handle this differently
 	}
 
@@ -167,15 +166,15 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 func (f *FilerServer) deleteFileHandler(c echo.Context) error {
 	file := strings.TrimPrefix(c.Param("*"), "/")
 
-	log.Printf("Delete file: %s\n", file)
+	c.Logger().Printf("Delete file: %s", file)
 
 	err := f.store.DeleteFile(context.Background(), file)
 	if err != nil {
-		log.Printf("Error deleting the file %s: %s\n", file, err.Error())
+		c.Logger().Errorf("Error deleting the file %s: %s", file, err.Error())
 		return c.String(http.StatusInternalServerError, "Error deleting the file")
 	}
 
-	log.Printf("File %s deleted successfully\n", file)
+	c.Logger().Printf("File %s deleted successfully", file)
 
 	return c.String(http.StatusOK, "File deleted successfully")
 }

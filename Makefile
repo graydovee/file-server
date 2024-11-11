@@ -1,4 +1,4 @@
-TAG?=0.0.8
+TAG?=0.0.9
 # Image URL to use all building/pushing image targets
 REPO?=graydovee/fileserver
 IMG?=$(REPO):$(TAG)

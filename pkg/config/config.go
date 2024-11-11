@@ -3,7 +3,6 @@ package config
 import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/pflag"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -81,7 +80,7 @@ var defaultConfig Config
 func GetDefault(envFileName ...string) *Config {
 	defaultConfigLoader.Do(func() {
 		if err := godotenv.Load(envFileName...); err != nil {
-			log.Panicln("Error loading .env file")
+			// ignore error
 		}
 		defaultConfig = Config{
 			Address:      GetEnvOrDefault("SERVER_LISTEN_ADDRESS", ":8080"),

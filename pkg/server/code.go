@@ -9,7 +9,6 @@ import (
 	"github.com/graydovee/fileManager/pkg/config"
 	"github.com/graydovee/fileManager/pkg/store"
 	"github.com/labstack/echo/v4"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -67,7 +66,7 @@ func (s *CodeServer) handleUploadPage(c echo.Context) error {
 func (s *CodeServer) handleUpload(c echo.Context) error {
 	// Parse the form data
 	if err := c.Request().ParseForm(); err != nil {
-		log.Printf("Error parsing form: %v", err)
+		c.Logger().Errorf("Error parsing form: %v", err)
 		return c.String(http.StatusBadRequest, "Invalid form data")
 	}
 
@@ -121,7 +120,7 @@ func (s *CodeServer) handleCodeShow(c echo.Context) error {
 	// Check if the file exists
 	exists, err := s.store.FileExists(context.Background(), filePath)
 	if err != nil {
-		log.Printf("Error checking file existence %s: %v", filePath, err)
+		c.Logger().Errorf("Error checking file existence %s: %v", filePath, err)
 		return c.String(http.StatusInternalServerError, "Error checking file")
 	}
 
@@ -132,7 +131,7 @@ func (s *CodeServer) handleCodeShow(c echo.Context) error {
 	// Download the file content
 	buffer := bytes.NewBuffer(nil)
 	if err := s.store.DownloadFile(context.Background(), buffer, filePath); err != nil {
-		log.Printf("Failed to download code %s: %v", filePath, err)
+		c.Logger().Errorf("Failed to download code %s: %v", filePath, err)
 		return c.String(http.StatusInternalServerError, "Failed to download code")
 	}
 
