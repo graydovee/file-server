@@ -1,26 +1,29 @@
-package internal
+package server
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/graydovee/fileManager/pkg/config"
+	"github.com/graydovee/fileManager/pkg/store"
 	"io"
 	"log"
 	"net/http"
-	"os"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 type FilerServer struct {
-	cfg *config.Config
+	cfg   *config.Config
+	store store.Store
 }
 
-func NewFileServer(cfg *config.Config) *FilerServer {
+func NewFileServer(cfg *config.Config, st store.Store) *FilerServer {
 	return &FilerServer{
-		cfg: cfg,
+		cfg:   cfg,
+		store: st,
 	}
 }
 
@@ -29,7 +32,7 @@ func (f *FilerServer) Setup(s *gin.Engine) error {
 	s.POST("/upload", f.uploadFileHandlerByForm)
 	s.PUT("/upload", f.uploadFileHandlerByStream)
 	s.GET("/download/*file", f.downloadFileHandler)
-	log.Printf("Upload directory: %s\n", f.cfg.UploadDir)
+	s.DELETE("/delete/*file", f.deleteFileHandler)
 	return nil
 }
 
@@ -78,68 +81,93 @@ func (f *FilerServer) uploadFileHandlerByStream(c *gin.Context) {
 	f.saveFile(file, fileName, c)
 }
 
-func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c *gin.Context) {
+const layout = "20060102150405000"
 
+func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c *gin.Context) {
 	// Generate UUID for filename and remove dashes
-	newFileName := strings.ReplaceAll(uuid.New().String(), "-", "") + "-" + filename
+	newFileName := strings.ReplaceAll(time.Now().Format(layout), "-", "") + "-" + filename
 
 	// Create directory structure based on current year and month
 	now := time.Now()
 	yearMonthPath := fmt.Sprintf("%d/%02d", now.Year(), now.Month())
-	yearMonthPathDir := filepath.Join(f.cfg.UploadDir, yearMonthPath)
-	if err := os.MkdirAll(yearMonthPathDir, os.ModePerm); err != nil {
-		log.Printf("Error creating directory %s: %s\n", yearMonthPathDir, err.Error())
-		c.String(http.StatusInternalServerError, "Error creating directory")
-		return
-	}
+	filePath := fmt.Sprintf("%s/%s", yearMonthPath, newFileName)
 
-	filePath := filepath.Join(yearMonthPath, newFileName)
-
-	fullPath := filepath.Join(f.cfg.UploadDir, filePath)
-
-	// Create new file
-	newFile, err := os.Create(fullPath)
+	// Upload to Store
+	err := f.store.UploadFile(context.Background(), file, filePath)
 	if err != nil {
-		log.Printf("Error creating the file %s: %s\n", filePath, err.Error())
-		c.String(http.StatusInternalServerError, "Error creating the file")
-		return
-	}
-	defer newFile.Close()
-
-	// Copy the uploaded file to the new file
-	_, err = io.Copy(newFile, file)
-	if err != nil {
-		log.Printf("Error saving the file %s: %s\n", filePath, err.Error())
-		c.String(http.StatusInternalServerError, "Error saving the file")
+		log.Printf("Error uploading the file %s to S3: %s\n", filename, err.Error())
+		c.String(http.StatusInternalServerError, "Error uploading the file to S3")
 		return
 	}
 
-	log.Printf("File %s uploaded successfully: %s\n", filename, filePath)
+	log.Printf("File %s uploaded successfully to S3: %s\n", filename, filePath)
 
 	downloadUrl := getDownloadUrl(c.Request.Host, filePath, f.cfg.EnableTls)
+
+	// external download command
 	respData := fmt.Sprintf(`
 File uploaded successfully.
 
 Download command:
 	wget %s -O %s
-`, downloadUrl, filename)
+`, downloadUrl, escapeFileName(filename))
+
 	internalDownloadUrl := getDownloadUrl(getInternalHost(f.cfg.Address, f.cfg.InternalHost), filePath, false)
 	if internalDownloadUrl != downloadUrl {
+		// internal download command
 		respData += fmt.Sprintf(`
 Internal download command:
 	wget %s -O %s
-`, internalDownloadUrl, filename)
+`, internalDownloadUrl, escapeFileName(filename))
 	}
+
 	c.String(http.StatusOK, respData)
 }
 
 func (f *FilerServer) downloadFileHandler(c *gin.Context) {
-	file := c.Param("file")
 
-	fullFilePath := filepath.Join(f.cfg.UploadDir, file)
+	file := strings.TrimPrefix(c.Param("file"), "/")
+
 	log.Printf("Download file: %s\n", file)
 
-	c.File(fullFilePath)
+	exists, err := f.store.FileExists(context.Background(), file)
+	if err != nil {
+		log.Printf("Error checking the file %s: %s\n", file, err.Error())
+		c.String(http.StatusInternalServerError, "Error checking the file")
+		return
+	}
+
+	if !exists {
+		log.Printf("File %s not found\n", file)
+		c.String(http.StatusNotFound, "File not found")
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(file)))
+	c.Header("Content-Type", "application/octet-stream")
+
+	c.Status(http.StatusOK)
+	if err = f.store.DownloadFile(context.Background(), c.Writer, file); err != nil {
+		log.Printf("Error downloading the file %s: %s\n", file, err.Error())
+		return
+	}
+}
+
+func (f *FilerServer) deleteFileHandler(c *gin.Context) {
+	file := strings.TrimPrefix(c.Param("file"), "/")
+
+	log.Printf("Delete file: %s\n", file)
+
+	err := f.store.DeleteFile(context.Background(), file)
+	if err != nil {
+		log.Printf("Error deleting the file %s: %s\n", file, err.Error())
+		c.String(http.StatusInternalServerError, "Error deleting the file")
+		return
+	}
+
+	log.Printf("File %s deleted successfully\n", file)
+
+	c.String(http.StatusOK, "File deleted successfully")
 }
 
 func getUploadAddress(host string, enableTls bool) string {
@@ -159,7 +187,32 @@ func getDownloadUrl(host, filePath string, enableTls bool) string {
 	} else {
 		schema = "http"
 	}
-	return fmt.Sprintf("%s://%s/download/%s", schema, host, filePath)
+	return fmt.Sprintf("%s://%s/download/%s", schema, host, encodeUrlPath(filePath))
+}
+
+func encodeUrlPath(filePath string) string {
+	if len(filePath) == 0 {
+		return ""
+	}
+	filePath = filepath.ToSlash(filePath)
+
+	parts := strings.Split(filePath, "/")
+
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+
+	return strings.Join(parts, "/")
+}
+
+func escapeFileName(fileName string) string {
+	specialChars := []string{"(", ")", " ", "&", "$", "#", "@"}
+
+	for _, char := range specialChars {
+		fileName = strings.ReplaceAll(fileName, char, "\\"+char)
+	}
+
+	return fileName
 }
 
 func getInternalHost(listenAddr, overrideHost string) string {

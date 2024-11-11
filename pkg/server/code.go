@@ -1,23 +1,26 @@
-package internal
+package server
 
 import (
+	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/graydovee/fileManager/pkg/config"
+	"github.com/graydovee/fileManager/pkg/store"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 )
 
 type CodeServer struct {
-	cfg *config.Config
+	store store.Store
 }
 
-func NewCodeServer(cfg *config.Config) *CodeServer {
+func NewCodeServer(_ *config.Config, st store.Store) *CodeServer {
 	return &CodeServer{
-		cfg: cfg,
+		store: st,
 	}
 }
 
@@ -64,7 +67,7 @@ func (s *CodeServer) handleUpload(c *gin.Context) {
 		return
 	}
 
-	dirname := filepath.Join(s.cfg.UploadDir, "code", language)
+	dirname := filepath.Join("code", language)
 	if err := os.MkdirAll(dirname, os.ModePerm); err != nil {
 		c.String(http.StatusInternalServerError, "create directory failed")
 		return
@@ -72,12 +75,12 @@ func (s *CodeServer) handleUpload(c *gin.Context) {
 
 	filename := shortHash(code)
 	filePath := filepath.Join(dirname, filename+ext)
-	if err := os.WriteFile(filePath, []byte(code), os.ModePerm); err != nil {
-		c.String(http.StatusInternalServerError, "write file failed")
+
+	buffer := bytes.NewBuffer([]byte(code))
+	if err := s.store.UploadFile(context.Background(), buffer, filePath); err != nil {
+		log.Printf("failed to save code %s: %v\n", filePath, err)
 		return
 	}
-
-	c.Redirect(http.StatusFound, fmt.Sprintf("/code/%s/%s", language, filename))
 }
 
 func (s *CodeServer) handleCodeShow(c *gin.Context) {
@@ -90,14 +93,15 @@ func (s *CodeServer) handleCodeShow(c *gin.Context) {
 		return
 	}
 
-	filePath := filepath.Join(s.cfg.UploadDir, "code", lang, hash+ext)
-	file, err := os.ReadFile(filePath)
-	if err != nil {
+	buffer := bytes.NewBuffer(nil)
+	filePath := filepath.Join("code", lang, hash+ext)
+
+	if err := s.store.DownloadFile(context.Background(), buffer, filePath); err != nil {
 		c.String(http.StatusNotFound, "code not found")
 		return
 	}
 	c.HTML(http.StatusOK, "codeshow.html", gin.H{
-		"Code":     string(file),
+		"Code":     buffer.String(),
 		"Language": lang,
 	})
 }
