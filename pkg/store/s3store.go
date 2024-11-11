@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
@@ -13,8 +14,11 @@ import (
 	fconfig "github.com/graydovee/fileManager/pkg/config"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 )
+
+var _ Store = (*S3Store)(nil)
 
 type S3Store struct {
 	cfg *fconfig.S3StoreConfig
@@ -139,4 +143,33 @@ func (s *S3Store) DownloadFile(ctx context.Context, writer io.Writer, key string
 	}
 
 	return nil
+}
+
+// List lists all the directories and files in the given directory.
+func (s *S3Store) List(ctx context.Context, dir string) ([]string, []string, error) {
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+	dir = strings.TrimPrefix(dir, "/")
+
+	objects, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+		Bucket:    aws.String(s.cfg.Bucket),
+		Prefix:    aws.String(dir),
+		Delimiter: aws.String("/"),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list objects: %v", err)
+	}
+
+	var dirs []string
+	var files []string
+
+	for _, obj := range objects.CommonPrefixes {
+		dirs = append(dirs, strings.TrimPrefix(*obj.Prefix, dir))
+	}
+
+	for _, obj := range objects.Contents {
+		files = append(files, strings.TrimPrefix(*obj.Key, dir))
+	}
+	return dirs, files, nil
 }

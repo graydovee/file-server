@@ -84,8 +84,9 @@ func GetDefault(envFileName ...string) *Config {
 			log.Panicln("Error loading .env file")
 		}
 		defaultConfig = Config{
-			Address:   GetEnvOrDefault("SERVER_LISTEN_ADDRESS", ":8080"),
-			EnableTls: EnvExist("SERVER_ENABLE_TLS"),
+			Address:      GetEnvOrDefault("SERVER_LISTEN_ADDRESS", ":8080"),
+			EnableTls:    EnvExist("SERVER_ENABLE_TLS"),
+			InternalHost: GetEnvOrDefault("INTERNAL_HOST", "127.0.0.1"),
 			Resource: ResourceConfig{
 				StaticDir:   GetEnvOrDefault("RESOURCE_STATIC_DIR", defaultStaticDir),
 				TemplateDir: GetEnvOrDefault("RESOURCE_TEMPLATE_DIR", defaultTemplateDir),

@@ -45,6 +45,7 @@ func init() {
 	f := rootCmd.Flags()
 	f.StringVarP(&cfg.Address, "address", "a", config.GetDefault().Address, "server listen address")
 	f.BoolVarP(&cfg.EnableTls, "tls", "t", config.GetDefault().EnableTls, "enable https")
+	f.StringVar(&cfg.InternalHost, "internal-host", config.GetDefault().InternalHost, "internal host")
 
 	f.StringVar(&cfg.Resource.StaticDir, "resource-static", config.GetDefault().Resource.StaticDir, "static file directory")
 	f.StringVar(&cfg.Resource.TemplateDir, "template-dir", config.GetDefault().Resource.TemplateDir, "template file directory")
@@ -54,7 +55,6 @@ func init() {
 	f.StringVar(&cfg.Store.Local.UploadDir, "upload-dir", config.GetDefault().Store.Local.UploadDir, "file upload directory")
 
 	f.StringVar(&cfg.Store.S3.Endpoint, "s3-endpoint", config.GetDefault().Store.S3.Endpoint, "s3 endpoint")
-	f.StringVar(&cfg.Store.S3.EndpointInternal, "s3-endpoint-internal", config.GetDefault().Store.S3.EndpointInternal, "internal s3 endpoint")
 	f.StringVar(&cfg.Store.S3.AccessKeyID, "s3-access-key-id", config.GetDefault().Store.S3.AccessKeyID, "s3 access key id")
 	f.StringVar(&cfg.Store.S3.SecretAccessKey, "s3-secret-access-key", config.GetDefault().Store.S3.SecretAccessKey, "s3 secret access key")
 	f.StringVar(&cfg.Store.S3.Bucket, "s3-bucket", config.GetDefault().Store.S3.Bucket, "s3 bucket")

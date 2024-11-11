@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 )
 
+var _ Store = (*LocalStore)(nil)
+
 type LocalStore struct {
 	cfg *config.LocalStoreConfig
 }
@@ -51,14 +53,14 @@ func (l *LocalStore) DeleteFile(ctx context.Context, filePath string) error {
 }
 
 func (l *LocalStore) FileExists(ctx context.Context, file string) (bool, error) {
-	_, err := os.Stat(l.getFullFilePath(file))
+	stat, err := os.Stat(l.getFullFilePath(file))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to check file: %w", err)
 	}
-	return true, nil
+	return !stat.IsDir(), nil
 }
 
 func (l *LocalStore) DownloadFile(ctx context.Context, writer io.Writer, key string) error {
@@ -75,6 +77,28 @@ func (l *LocalStore) DownloadFile(ctx context.Context, writer io.Writer, key str
 	}
 
 	return nil
+}
+
+func (l *LocalStore) List(ctx context.Context, dir string) ([]string, []string, error) {
+	l.getFullFilePath(dir)
+	stats, err := os.ReadDir(l.getFullFilePath(dir))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+
+	var dirs []string
+	var files []string
+	for _, stat := range stats {
+		if stat.IsDir() {
+			dirs = append(dirs, stat.Name())
+		} else {
+			files = append(files, stat.Name())
+		}
+	}
+	return dirs, files, nil
 }
 
 func (l *LocalStore) getFullFilePath(key string) string {

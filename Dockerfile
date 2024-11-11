@@ -13,7 +13,7 @@ COPY cmd/ cmd/
 COPY pkg/ pkg/
 
 
-RUN CGO_ENABLED=0 go build -ldflags "-X 'main.defaultUploadDir=/data/uploads'" -o /fileserver cmd/main.go
+RUN CGO_ENABLED=0 go build -o /fileserver cmd/main.go
 
 FROM alpine:3.16
 WORKDIR /bin
