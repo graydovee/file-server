@@ -24,5 +24,6 @@ go.work
 
 uploads
 .idea
+*.env
 
 tls.yaml
