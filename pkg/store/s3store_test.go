@@ -19,7 +19,7 @@ func TestListObj(t *testing.T) {
 	}
 	//store := NewLocalStore(&cfg.Store.Local)
 
-	dirs, files, err := store.List(context.Background(), "/codex/xx")
+	dirs, err := store.List(context.Background(), "/codex/xx")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestS3Store(t *testing.T) {
 
 	t.Log("test/test1.txt")
 
-	exists, err := store.FileExists(context.Background(), "test/test1.txt")
+	exists, err := store.FileMeta(context.Background(), "test/test1.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestS3Store(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exists, err = store.FileExists(context.Background(), "test/test1.txt")
+	exists, err = store.FileMeta(context.Background(), "test/test1.txt")
 	if err != nil {
 		t.Fatal(err)
 	}

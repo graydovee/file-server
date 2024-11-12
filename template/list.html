@@ -50,6 +50,10 @@
         .list-item a:hover {
             text-decoration: underline;
         }
+        .file-size {
+            margin-right: 20px;
+            color: #666;
+        }
         .delete-button {
             background-color: #ff4b4b;
             color: white;
@@ -65,12 +69,6 @@
         }
         .delete-button img {
             margin-right: 5px;
-        }
-        .dirs, .files {
-            margin-top: 20px;
-        }
-        .dirs h2, .files h2 {
-            color: #555;
         }
     </style>
     <script>
@@ -91,41 +89,49 @@
                     });
             }
         }
+
+        function formatSize(size) {
+            if (size < 1024) return size + ' B';
+            let units = ['KB', 'MB', 'GB', 'TB'];
+            let unitIndex = -1;
+            do {
+                size = size / 1024;
+                unitIndex++;
+            } while (size >= 1024 && unitIndex < units.length - 1);
+            return size.toFixed(1) + ' ' + units[unitIndex];
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            let sizeElements = document.querySelectorAll(".file-size");
+            sizeElements.forEach(function(element) {
+                let size = parseInt(element.getAttribute("data-size"), 10);
+                element.textContent = formatSize(size);
+            });
+        });
     </script>
 </head>
 <body>
 <div class="container">
     <h1>Document List</h1>
-    {{if .Dirs}}
-    <div class="dirs">
-        <h2>Directories</h2>
-        <ul class="list">
-            {{range .Dirs}}
-            <li class="list-item"><a href="{{$.DownloadEndpoint}}/{{.}}">{{.}}</a></li>
-            {{end}}
-        </ul>
-    </div>
-    {{end}}
-    {{if .Files}}
     <div class="files">
-        <h2>Files</h2>
+        <h2>Files and Directories</h2>
         <ul class="list">
             {{range .Files}}
             <li class="list-item">
-                <a href="{{$.DownloadEndpoint}}/{{.}}">{{.}}</a>
-                <button class="delete-button" onclick="deleteFile('{{$.DeleteEndpoint}}', '{{.}}')">
+                <a href="{{if .IsDir}}{{$.DownloadEndpoint}}/{{.Name}}{{else}}{{$.DownloadEndpoint}}/{{.Name}}{{end}}">{{.Name}}</a>
+                {{if not .IsDir}}
+                <span class="file-size" data-size="{{.Size}}"></span>
+                <button class="delete-button" onclick="deleteFile('{{$.DeleteEndpoint}}/{{.Name}}')">
                     <img src="/assert/img/trash.png" alt="Delete" width="16" height="16"/>
                     Delete
                 </button>
+                {{end}}
             </li>
+            {{else}}
+            <li class="list-item">No files or directories available</li>
             {{end}}
         </ul>
     </div>
-    {{end}}
-
-    {{ if and (eq (len .Dirs) 0) (eq (len .Files) 0) }}
-    <li class="list-item">No directories or files available</li>
-    {{end}}
 </div>
 </body>
 </html>

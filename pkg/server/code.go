@@ -118,13 +118,13 @@ func (s *CodeServer) handleCodeShow(c echo.Context) error {
 	filePath := filepath.Join("code", lang, hash+ext)
 
 	// Check if the file exists
-	exists, err := s.store.FileExists(context.Background(), filePath)
+	meta, err := s.store.FileMeta(context.Background(), filePath)
 	if err != nil {
 		c.Logger().Errorf("Error checking file existence %s: %v", filePath, err)
 		return c.String(http.StatusInternalServerError, "Error checking file")
 	}
 
-	if !exists {
+	if meta == nil {
 		return c.String(http.StatusNotFound, "Code not found")
 	}
 

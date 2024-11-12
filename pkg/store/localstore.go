@@ -52,15 +52,18 @@ func (l *LocalStore) DeleteFile(ctx context.Context, filePath string) error {
 	return nil
 }
 
-func (l *LocalStore) FileExists(ctx context.Context, file string) (bool, error) {
+func (l *LocalStore) FileMeta(ctx context.Context, file string) (*FileMeta, error) {
+	var meta FileMeta
 	stat, err := os.Stat(l.getFullFilePath(file))
+	meta.Name = filepath.Base(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, nil
+			return nil, nil
 		}
-		return false, fmt.Errorf("failed to check file: %w", err)
+		return nil, fmt.Errorf("failed to check file: %w", err)
 	}
-	return !stat.IsDir(), nil
+	meta.Size = stat.Size()
+	return &meta, nil
 }
 
 func (l *LocalStore) DownloadFile(ctx context.Context, writer io.Writer, key string) error {
@@ -79,26 +82,31 @@ func (l *LocalStore) DownloadFile(ctx context.Context, writer io.Writer, key str
 	return nil
 }
 
-func (l *LocalStore) List(ctx context.Context, dir string) ([]string, []string, error) {
+func (l *LocalStore) List(ctx context.Context, dir string) ([]*FileMeta, error) {
 	l.getFullFilePath(dir)
 	stats, err := os.ReadDir(l.getFullFilePath(dir))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil, nil
+			return nil, nil
 		}
-		return nil, nil, fmt.Errorf("failed to read directory: %w", err)
+		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
-	var dirs []string
-	var files []string
+	var files []*FileMeta
 	for _, stat := range stats {
-		if stat.IsDir() {
-			dirs = append(dirs, stat.Name())
-		} else {
-			files = append(files, stat.Name())
+		f := &FileMeta{
+			Name:  stat.Name(),
+			IsDir: stat.IsDir(),
+		}
+		if !stat.IsDir() {
+			info, err := stat.Info()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get file info: %w", err)
+			}
+			f.Size = info.Size()
 		}
 	}
-	return dirs, files, nil
+	return files, nil
 }
 
 func (l *LocalStore) getFullFilePath(key string) string {

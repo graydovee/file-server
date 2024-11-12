@@ -125,15 +125,15 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 
 	c.Logger().Printf("Download file: %s", file)
 
-	exists, err := f.store.FileExists(context.Background(), file)
+	meta, err := f.store.FileMeta(context.Background(), file)
 	if err != nil {
 		c.Logger().Errorf("Error checking the file %s: %s", file, err.Error())
 		return c.String(http.StatusInternalServerError, "Error checking the file")
 	}
 
-	if !exists {
+	if meta == nil {
 		// file list page
-		dirs, files, err := f.store.List(context.Background(), file)
+		fileMetas, err := f.store.List(context.Background(), file)
 		if err != nil {
 			c.Logger().Errorf("Error listing the file %s: %s", file, err.Error())
 			return c.String(http.StatusInternalServerError, "Error listing the file")
@@ -142,8 +142,7 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 		return c.Render(http.StatusOK, "list.html", map[string]interface{}{
 			"DownloadEndpoint": getDownloadUrl(c.Request().Host, file, f.cfg.EnableTls),
 			"DeleteEndpoint":   getDeleteUrl(c.Request().Host, file, f.cfg.EnableTls),
-			"Dirs":             dirs,
-			"Files":            files,
+			"Files":            fileMetas,
 		})
 	}
 
@@ -152,6 +151,7 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 	// Set headers
 	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(file)))
 	c.Response().Header().Set("Content-Type", "application/octet-stream")
+	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
 	c.Response().WriteHeader(http.StatusOK)
 
 	// Stream the file
