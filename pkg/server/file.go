@@ -3,16 +3,16 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/graydovee/fileManager/pkg/config"
-	"github.com/graydovee/fileManager/pkg/store"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/graydovee/fileManager/pkg/config"
+	"github.com/graydovee/fileManager/pkg/store"
+	"github.com/labstack/echo/v4"
 )
 
 type FilerServer struct {
@@ -27,65 +27,62 @@ func NewFileServer(cfg *config.Config, st store.Store) *FilerServer {
 	}
 }
 
-func (f *FilerServer) Setup(s *gin.Engine) error {
-	s.GET("/", f.handleHelpPage)
-	s.POST("/upload", f.uploadFileHandlerByForm)
-	s.PUT("/upload", f.uploadFileHandlerByStream)
-	s.GET("/download/*file", f.downloadFileHandler)
-	s.DELETE("/delete/*file", f.deleteFileHandler)
+func (f *FilerServer) Setup(e *echo.Echo) error {
+	e.GET("/", f.handleHelpPage)
+	e.POST("/upload", f.uploadFileHandlerByForm)
+	e.PUT("/upload", f.uploadFileHandlerByStream)
+	e.GET("/download", f.downloadFileHandler)
+	e.GET("/download/*", f.downloadFileHandler)
+	e.DELETE("/delete/*", f.deleteFileHandler)
+
 	return nil
 }
 
-func (f *FilerServer) handleHelpPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "index.html", gin.H{
-		"UploadAddress":   getUploadAddress(c.Request.Host, f.cfg.EnableTls),
-		"DownloadAddress": getDownloadUrl(c.Request.Host, "[year]/[month]/[file_name]", f.cfg.EnableTls),
+func (f *FilerServer) handleHelpPage(c echo.Context) error {
+	return c.Render(http.StatusOK, "index.html", map[string]interface{}{
+		"UploadAddress":   getUploadAddress(c.Request().Host, f.cfg.EnableTls),
+		"DownloadAddress": getDownloadUrl(c.Request().Host, "[year]/[month]/[file_name]", f.cfg.EnableTls),
 	})
 }
 
-func (f *FilerServer) uploadFileHandlerByForm(c *gin.Context) {
-	log.Printf("File uploaded by form")
+func (f *FilerServer) uploadFileHandlerByForm(c echo.Context) error {
+	c.Logger().Printf("File uploaded by form")
 
-	contentType := c.Request.Header.Get("Content-Type")
+	contentType := c.Request().Header.Get("Content-Type")
 
 	if !strings.HasPrefix(contentType, "multipart/form-data") {
-		log.Printf("Unsupported content type: %s\n", contentType)
-		c.String(http.StatusBadRequest, "Unsupported content type")
-		return
+		c.Logger().Errorf("Unsupported content type: %s", contentType)
+		return c.String(http.StatusBadRequest, "Unsupported content type")
 	}
 
 	// Handle form file upload
-	formFile, header, err := c.Request.FormFile("file")
+	formFile, header, err := c.Request().FormFile("file")
 	if err != nil {
-		log.Printf("Error retrieving the file: %s\n", err.Error())
-		c.String(http.StatusInternalServerError, "Error retrieving the file")
-		return
+		c.Logger().Errorf("Error retrieving the file: %s", err.Error())
+		return c.String(http.StatusInternalServerError, "Error retrieving the file")
 	}
 	defer formFile.Close()
 
-	f.saveFile(formFile, header.Filename, c)
+	return f.saveFile(formFile, header.Filename, c)
 }
 
-func (f *FilerServer) uploadFileHandlerByStream(c *gin.Context) {
-	log.Printf("File uploaded by stream")
+func (f *FilerServer) uploadFileHandlerByStream(c echo.Context) error {
+	c.Logger().Printf("File uploaded by stream")
 
 	// Handle direct file upload
-	file := c.Request.Body
-	fileName := c.Request.Header.Get("X-Filename")
+	file := c.Request().Body
+	fileName := c.Request().Header.Get("X-Filename")
 	if fileName == "" {
-		log.Printf("Error: X-Filename header is missing")
-		c.String(http.StatusBadRequest, "X-Filename header is missing")
-		return
+		c.Logger().Errorf("Error: X-Filename header is missing")
+		return c.String(http.StatusBadRequest, "X-Filename header is missing")
 	}
 
-	f.saveFile(file, fileName, c)
+	return f.saveFile(file, fileName, c)
 }
 
-const layout = "20060102150405000"
-
-func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c *gin.Context) {
-	// Generate UUID for filename and remove dashes
-	newFileName := strings.ReplaceAll(time.Now().Format(layout), "-", "") + "-" + filename
+func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c echo.Context) error {
+	// Generate unique filename using timestamp and original filename
+	newFileName := strings.ReplaceAll(GetTimeStamp(), "-", "") + "-" + filename
 
 	// Create directory structure based on current year and month
 	now := time.Now()
@@ -95,16 +92,15 @@ func (f *FilerServer) saveFile(file io.ReadCloser, filename string, c *gin.Conte
 	// Upload to Store
 	err := f.store.UploadFile(context.Background(), file, filePath)
 	if err != nil {
-		log.Printf("Error uploading the file %s to S3: %s\n", filename, err.Error())
-		c.String(http.StatusInternalServerError, "Error uploading the file to S3")
-		return
+		c.Logger().Errorf("Error uploading the file %s to store: %s", filename, err.Error())
+		return c.String(http.StatusInternalServerError, "Error uploading the file to the store")
 	}
 
-	log.Printf("File %s uploaded successfully to S3: %s\n", filename, filePath)
+	c.Logger().Printf("File %s uploaded successfully to store: %s", filename, filePath)
 
-	downloadUrl := getDownloadUrl(c.Request.Host, filePath, f.cfg.EnableTls)
+	downloadUrl := getDownloadUrl(c.Request().Host, EscapeUrlPath(filePath), f.cfg.EnableTls)
 
-	// external download command
+	// External download command
 	respData := fmt.Sprintf(`
 File uploaded successfully.
 
@@ -112,85 +108,108 @@ Download command:
 	wget %s -O %s
 `, downloadUrl, escapeFileName(filename))
 
-	internalDownloadUrl := getDownloadUrl(getInternalHost(f.cfg.Address, f.cfg.InternalHost), filePath, false)
+	internalDownloadUrl := getDownloadUrl(getInternalHost(f.cfg.Address, f.cfg.InternalHost), EscapeUrlPath(filePath), false)
 	if internalDownloadUrl != downloadUrl {
-		// internal download command
+		// Internal download command
 		respData += fmt.Sprintf(`
 Internal download command:
 	wget %s -O %s
 `, internalDownloadUrl, escapeFileName(filename))
 	}
 
-	c.String(http.StatusOK, respData)
+	return c.String(http.StatusOK, respData)
 }
 
-func (f *FilerServer) downloadFileHandler(c *gin.Context) {
+func (f *FilerServer) downloadFileHandler(c echo.Context) error {
+	file := strings.TrimPrefix(c.Param("*"), "/")
 
-	file := strings.TrimPrefix(c.Param("file"), "/")
+	c.Logger().Printf("Download file: %s", file)
 
-	log.Printf("Download file: %s\n", file)
-
-	exists, err := f.store.FileExists(context.Background(), file)
+	meta, err := f.store.FileMeta(context.Background(), file)
 	if err != nil {
-		log.Printf("Error checking the file %s: %s\n", file, err.Error())
-		c.String(http.StatusInternalServerError, "Error checking the file")
-		return
+		c.Logger().Errorf("Error checking the file %s: %s", file, err.Error())
+		return c.String(http.StatusInternalServerError, "Error checking the file")
 	}
 
-	if !exists {
-		log.Printf("File %s not found\n", file)
-		c.String(http.StatusNotFound, "File not found")
-		return
+	if meta == nil {
+		// file list page
+		fileMetas, err := f.store.List(context.Background(), file)
+		if err != nil {
+			c.Logger().Errorf("Error listing the file %s: %s", file, err.Error())
+			return c.String(http.StatusInternalServerError, "Error listing the file")
+		}
+
+		return c.Render(http.StatusOK, "list.html", map[string]interface{}{
+			"DownloadEndpoint": getDownloadUrl(c.Request().Host, file, f.cfg.EnableTls),
+			"DeleteEndpoint":   getDeleteUrl(c.Request().Host, file, f.cfg.EnableTls),
+			"Files":            fileMetas,
+		})
 	}
 
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(file)))
-	c.Header("Content-Type", "application/octet-stream")
+	// download file
 
-	c.Status(http.StatusOK)
-	if err = f.store.DownloadFile(context.Background(), c.Writer, file); err != nil {
-		log.Printf("Error downloading the file %s: %s\n", file, err.Error())
-		return
+	// Set headers
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(file)))
+	c.Response().Header().Set("Content-Type", "application/octet-stream")
+	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
+	c.Response().WriteHeader(http.StatusOK)
+
+	// Stream the file
+	err = f.store.DownloadFile(context.Background(), c.Response().Writer, file)
+	if err != nil {
+		c.Logger().Errorf("Error downloading the file %s: %s", file, err.Error())
+		return err // You may choose to handle this differently
 	}
+
+	return nil
 }
 
-func (f *FilerServer) deleteFileHandler(c *gin.Context) {
-	file := strings.TrimPrefix(c.Param("file"), "/")
+func (f *FilerServer) deleteFileHandler(c echo.Context) error {
+	file := strings.TrimPrefix(c.Param("*"), "/")
 
-	log.Printf("Delete file: %s\n", file)
+	c.Logger().Printf("Delete file: %s", file)
 
 	err := f.store.DeleteFile(context.Background(), file)
 	if err != nil {
-		log.Printf("Error deleting the file %s: %s\n", file, err.Error())
-		c.String(http.StatusInternalServerError, "Error deleting the file")
-		return
+		c.Logger().Errorf("Error deleting the file %s: %s", file, err.Error())
+		return c.String(http.StatusInternalServerError, "Error deleting the file")
 	}
 
-	log.Printf("File %s deleted successfully\n", file)
+	c.Logger().Printf("File %s deleted successfully", file)
 
-	c.String(http.StatusOK, "File deleted successfully")
+	return c.String(http.StatusOK, "File deleted successfully")
 }
 
 func getUploadAddress(host string, enableTls bool) string {
-	var schema string
-	if enableTls {
-		schema = "https"
-	} else {
-		schema = "http"
-	}
-	return fmt.Sprintf("%s://%s/upload", schema, host)
+	return getUrl(host, "upload", enableTls)
 }
 
 func getDownloadUrl(host, filePath string, enableTls bool) string {
+	return getUrl(host, filepath.Join("download", strings.TrimPrefix(filePath, "/")), enableTls)
+}
+
+func getDeleteUrl(host, filePath string, enableTls bool) string {
+	return getUrl(host, filepath.Join("delete", strings.TrimPrefix(filePath, "/")), enableTls)
+}
+
+func getUrl(host, filePath string, enableTls bool) string {
 	var schema string
 	if enableTls {
 		schema = "https"
 	} else {
 		schema = "http"
 	}
-	return fmt.Sprintf("%s://%s/download/%s", schema, host, encodeUrlPath(filePath))
+
+	filePath = strings.Trim(filePath, "/")
+
+	endPoint := fmt.Sprintf("%s://%s", schema, host)
+	if filePath == "" {
+		return endPoint
+	}
+	return fmt.Sprintf("%s/%s", endPoint, filePath)
 }
 
-func encodeUrlPath(filePath string) string {
+func EscapeUrlPath(filePath string) string {
 	if len(filePath) == 0 {
 		return ""
 	}

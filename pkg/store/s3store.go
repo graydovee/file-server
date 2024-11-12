@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
@@ -13,8 +14,12 @@ import (
 	fconfig "github.com/graydovee/fileManager/pkg/config"
 	"io"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"sync"
 )
+
+var _ Store = (*S3Store)(nil)
 
 type S3Store struct {
 	cfg *fconfig.S3StoreConfig
@@ -66,12 +71,12 @@ func (s *S3Store) UploadFile(ctx context.Context, reader io.Reader, filePath str
 }
 
 func (s *S3Store) DeleteFile(ctx context.Context, filePath string) error {
-	exists, err := s.FileExists(ctx, filePath)
+	state, err := s.FileMeta(ctx, filePath)
 	if err != nil {
 		return err
 	}
 
-	if !exists {
+	if state == nil {
 		// file is already deleted
 		return nil
 	}
@@ -87,21 +92,28 @@ func (s *S3Store) DeleteFile(ctx context.Context, filePath string) error {
 	return nil
 }
 
-func (s *S3Store) FileExists(ctx context.Context, file string) (bool, error) {
-	_, err := s.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket: &s.cfg.Bucket,
-		Key:    &file,
-	})
+func (s *S3Store) FileMeta(ctx context.Context, file string) (*FileMeta, error) {
+	if file == "" {
+		// if file is empty, we consider it in root directory
+		return nil, nil
+	}
+
+	head, err := s.getHead(ctx, file)
 
 	if err != nil {
 		var notFoundErr *s3types.NotFound
 		if errors.As(err, &notFoundErr) {
-			return false, nil
+			return nil, nil
 		}
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	meta := &FileMeta{
+		Name: filepath.Base(file),
+		Size: *head.ContentLength,
+	}
+
+	return meta, nil
 }
 
 type writerAtAdapter struct {
@@ -139,4 +151,44 @@ func (s *S3Store) DownloadFile(ctx context.Context, writer io.Writer, key string
 	}
 
 	return nil
+}
+
+// List lists all the directories and files in the given directory.
+func (s *S3Store) List(ctx context.Context, dir string) ([]*FileMeta, error) {
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+	dir = strings.TrimPrefix(dir, "/")
+
+	objects, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+		Bucket:    aws.String(s.cfg.Bucket),
+		Prefix:    aws.String(dir),
+		Delimiter: aws.String("/"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects: %v", err)
+	}
+
+	var metas []*FileMeta
+	for _, obj := range objects.CommonPrefixes {
+		metas = append(metas, &FileMeta{
+			Name:  strings.TrimPrefix(*obj.Prefix, dir),
+			IsDir: true,
+		})
+	}
+
+	for _, obj := range objects.Contents {
+		metas = append(metas, &FileMeta{
+			Name: strings.TrimPrefix(*obj.Key, dir),
+			Size: *obj.Size,
+		})
+	}
+	return metas, nil
+}
+
+func (s *S3Store) getHead(ctx context.Context, file string) (*s3.HeadObjectOutput, error) {
+	return s.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: &s.cfg.Bucket,
+		Key:    &file,
+	})
 }

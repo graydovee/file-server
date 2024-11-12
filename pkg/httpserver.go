@@ -5,13 +5,17 @@ import (
 	"github.com/graydovee/fileManager/pkg/config"
 	"github.com/graydovee/fileManager/pkg/server"
 	"github.com/graydovee/fileManager/pkg/store"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"path/filepath"
 )
 
 type HttpServer struct {
-	engine *gin.Engine
+	engine *echo.Echo
 
 	cfg *config.Config
 }
@@ -31,9 +35,9 @@ func NewHttpServer(cfg *config.Config) (*HttpServer, error) {
 }
 
 func (s *HttpServer) init() error {
-	s.engine = gin.Default()
-	s.engine.LoadHTMLGlob(filepath.Join(s.cfg.Resource.TemplateDir, "*"))
-	s.engine.Static("/assert", s.cfg.Resource.StaticDir)
+	s.engine = echo.New()
+	s.engine.Use(middleware.Logger())
+	s.engine.Use(middleware.Recover())
 
 	var fileStore store.Store
 	switch s.cfg.Store.Type {
@@ -55,6 +59,15 @@ func (s *HttpServer) init() error {
 	if err := server.NewCodeServer(s.cfg, fileStore).Setup(s.engine); err != nil {
 		return err
 	}
+
+	templates, err := template.ParseGlob(filepath.Join(s.cfg.Resource.TemplateDir, "*"))
+	if err != nil {
+		return err
+	}
+	s.engine.Renderer = &Template{
+		templates: templates,
+	}
+	s.engine.Static("/assert", s.cfg.Resource.StaticDir) // Update the path to your static files
 	return nil
 }
 
@@ -64,4 +77,12 @@ func (s *HttpServer) Run() error {
 		return err
 	}
 	return nil
+}
+
+type Template struct {
+	templates *template.Template
+}
+
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
