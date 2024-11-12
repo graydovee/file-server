@@ -96,16 +96,17 @@
 <body>
 <div class="container">
     <h1>Document List</h1>
+    {{if .Dirs}}
     <div class="dirs">
         <h2>Directories</h2>
         <ul class="list">
             {{range .Dirs}}
             <li class="list-item"><a href="{{$.DownloadEndpoint}}/{{.}}">{{.}}</a></li>
-            {{else}}
-            <li class="list-item">No directories available</li>
             {{end}}
         </ul>
     </div>
+    {{end}}
+    {{if .Files}}
     <div class="files">
         <h2>Files</h2>
         <ul class="list">
@@ -117,11 +118,14 @@
                     Delete
                 </button>
             </li>
-            {{else}}
-            <li class="list-item">No files available</li>
             {{end}}
         </ul>
     </div>
+    {{end}}
+
+    {{ if and (eq (len .Dirs) 0) (eq (len .Files) 0) }}
+    <li class="list-item">No directories or files available</li>
+    {{end}}
 </div>
 </body>
 </html>

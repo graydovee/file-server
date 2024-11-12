@@ -31,6 +31,7 @@ func (f *FilerServer) Setup(e *echo.Echo) error {
 	e.GET("/", f.handleHelpPage)
 	e.POST("/upload", f.uploadFileHandlerByForm)
 	e.PUT("/upload", f.uploadFileHandlerByStream)
+	e.GET("/download", f.downloadFileHandler)
 	e.GET("/download/*", f.downloadFileHandler)
 	e.DELETE("/delete/*", f.deleteFileHandler)
 
