@@ -12,10 +12,12 @@
             margin: 0;
             padding: 20px;
         }
+
         h1 {
             text-align: center;
             color: #444;
         }
+
         .container {
             max-width: 800px;
             margin: 0 auto;
@@ -24,10 +26,12 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
         }
+
         .list {
             list-style-type: none;
             padding: 0;
         }
+
         .list-item {
             display: flex;
             justify-content: space-between;
@@ -36,24 +40,30 @@
             margin: 5px 0;
             border-radius: 4px;
         }
+
         .list-item:nth-child(odd) {
             background-color: #f9f9f9;
         }
+
         .list-item:nth-child(even) {
             background-color: #e9e9e9;
         }
+
         .list-item a {
             text-decoration: none;
             color: #007BFF;
             flex-grow: 1;
         }
+
         .list-item a:hover {
             text-decoration: underline;
         }
+
         .file-size {
             margin-right: 20px;
             color: #666;
         }
+
         .delete-button {
             background-color: #ff4b4b;
             color: white;
@@ -64,9 +74,11 @@
             display: flex;
             align-items: center;
         }
+
         .delete-button:hover {
             background-color: #ff0000;
         }
+
         .delete-button img {
             margin-right: 5px;
         }
@@ -75,7 +87,7 @@
         function deleteFile(endpoint, fileName) {
             const filePath = endpoint + '/' + fileName;
             if (confirm("Are you sure you want to delete " + fileName + "?")) {
-                fetch(filePath, { method: 'DELETE' })
+                fetch(filePath, {method: 'DELETE'})
                     .then(response => {
                         if (response.ok) {
                             location.reload();
@@ -101,9 +113,9 @@
             return size.toFixed(1) + ' ' + units[unitIndex];
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             let sizeElements = document.querySelectorAll(".file-size");
-            sizeElements.forEach(function(element) {
+            sizeElements.forEach(function (element) {
                 let size = parseInt(element.getAttribute("data-size"), 10);
                 element.textContent = formatSize(size);
             });
@@ -121,7 +133,7 @@
                 <a href="{{if .IsDir}}{{$.DownloadEndpoint}}/{{.Name}}{{else}}{{$.DownloadEndpoint}}/{{.Name}}{{end}}">{{.Name}}</a>
                 {{if not .IsDir}}
                 <span class="file-size" data-size="{{.Size}}"></span>
-                <button class="delete-button" onclick="deleteFile('{{$.DeleteEndpoint}}/{{.Name}}')">
+                <button class="delete-button" onclick="deleteFile('{{$.DeleteEndpoint}}','{{.Name}}')">
                     <img src="/assert/img/trash.png" alt="Delete" width="16" height="16"/>
                     Delete
                 </button>
