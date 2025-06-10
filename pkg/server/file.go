@@ -15,6 +15,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const downloadPath = "download"
+
 type FilerServer struct {
 	cfg   *config.Config
 	store store.Store
@@ -31,8 +33,9 @@ func (f *FilerServer) Setup(e *echo.Echo) error {
 	e.GET("/", f.handleHelpPage)
 	e.POST("/upload", f.uploadFileHandlerByForm)
 	e.PUT("/upload", f.uploadFileHandlerByStream)
-	e.GET("/download", f.downloadFileHandler)
-	e.GET("/download/*", f.downloadFileHandler)
+	e.GET(fmt.Sprintf("/%s", downloadPath), f.downloadFileHandler)
+	e.GET(fmt.Sprintf("/%s/", downloadPath), f.downloadFileHandler)
+	e.GET(fmt.Sprintf("/%s/*", downloadPath), f.downloadFileHandler)
 	e.DELETE("/delete/*", f.deleteFileHandler)
 
 	return nil
@@ -125,7 +128,7 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 
 	c.Logger().Printf("Download file: %s", file)
 
-	meta, err := f.store.FileMeta(context.Background(), file)
+	meta, err := f.store.FileMeta(context.Background(), strings.TrimSuffix(file, "/"))
 	if err != nil {
 		c.Logger().Errorf("Error checking the file %s: %s", file, err.Error())
 		return c.String(http.StatusInternalServerError, "Error checking the file")
@@ -142,6 +145,7 @@ func (f *FilerServer) downloadFileHandler(c echo.Context) error {
 		return c.Render(http.StatusOK, "list.html", map[string]interface{}{
 			"DownloadEndpoint": getDownloadUrl(c.Request().Host, file, f.cfg.EnableTls),
 			"DeleteEndpoint":   getDeleteUrl(c.Request().Host, file, f.cfg.EnableTls),
+			"BasePath":         downloadPath,
 			"Files":            fileMetas,
 		})
 	}
@@ -185,7 +189,7 @@ func getUploadAddress(host string, enableTls bool) string {
 }
 
 func getDownloadUrl(host, filePath string, enableTls bool) string {
-	return getUrl(host, filepath.Join("download", strings.TrimPrefix(filePath, "/")), enableTls)
+	return getUrl(host, filepath.Join(downloadPath, strings.TrimPrefix(filePath, "/")), enableTls)
 }
 
 func getDeleteUrl(host, filePath string, enableTls bool) string {
