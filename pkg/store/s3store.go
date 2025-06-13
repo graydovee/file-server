@@ -5,6 +5,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"path/filepath"
+	"strings"
+	"sync"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -12,11 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	fconfig "github.com/graydovee/fileManager/pkg/config"
-	"io"
-	"net/http"
-	"path/filepath"
-	"strings"
-	"sync"
 )
 
 var _ Store = (*S3Store)(nil)
@@ -160,29 +161,40 @@ func (s *S3Store) List(ctx context.Context, dir string) ([]*FileMeta, error) {
 	}
 	dir = strings.TrimPrefix(dir, "/")
 
-	objects, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-		Bucket:    aws.String(s.cfg.Bucket),
-		Prefix:    aws.String(dir),
-		Delimiter: aws.String("/"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list objects: %v", err)
-	}
-
 	var metas []*FileMeta
-	for _, obj := range objects.CommonPrefixes {
-		metas = append(metas, &FileMeta{
-			Name:  strings.TrimPrefix(*obj.Prefix, dir),
-			IsDir: true,
+	var continuationToken *string
+
+	for {
+		objects, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            aws.String(s.cfg.Bucket),
+			Prefix:            aws.String(dir),
+			Delimiter:         aws.String("/"),
+			ContinuationToken: continuationToken,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list objects: %v", err)
+		}
+
+		for _, obj := range objects.CommonPrefixes {
+			metas = append(metas, &FileMeta{
+				Name:  strings.TrimPrefix(*obj.Prefix, dir),
+				IsDir: true,
+			})
+		}
+
+		for _, obj := range objects.Contents {
+			metas = append(metas, &FileMeta{
+				Name: strings.TrimPrefix(*obj.Key, dir),
+				Size: *obj.Size,
+			})
+		}
+
+		if objects.IsTruncated == nil || !*objects.IsTruncated {
+			break
+		}
+		continuationToken = objects.NextContinuationToken
 	}
 
-	for _, obj := range objects.Contents {
-		metas = append(metas, &FileMeta{
-			Name: strings.TrimPrefix(*obj.Key, dir),
-			Size: *obj.Size,
-		})
-	}
 	return metas, nil
 }
 
