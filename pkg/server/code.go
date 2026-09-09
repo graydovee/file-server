@@ -2,39 +2,30 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"net/http"
+	"path/filepath"
+
 	"github.com/graydovee/fileManager/pkg/config"
 	"github.com/graydovee/fileManager/pkg/store"
 	"github.com/labstack/echo/v4"
-	"net/http"
-	"os"
-	"path/filepath"
 )
 
-// CodeServer handles code upload and display functionalities
+// CodeServer 提供代码片段的分享与展示 API
 type CodeServer struct {
 	store store.Store
 }
 
-// NewCodeServer creates a new instance of CodeServer
 func NewCodeServer(_ *config.Config, st store.Store) *CodeServer {
-	return &CodeServer{
-		store: st,
-	}
+	return &CodeServer{store: st}
 }
 
-// Setup configures the routes and middleware for CodeServer
 func (s *CodeServer) Setup(e *echo.Echo) error {
-	group := e.Group("/code")
-
-	// Routes
-	group.GET("", s.handleUploadPage)
-	group.GET("/:lang/:hash", s.handleCodeShow)
-	group.POST("", s.handleUpload)
-
+	g := e.Group("/api/code")
+	g.POST("", s.handleUpload)
+	g.GET("/:lang/:hash", s.handleCodeShow)
 	return nil
 }
 
@@ -55,92 +46,76 @@ var extMap = map[string]string{
 	"xml":        ".xml",
 }
 
-// handleUploadPage renders the code upload page with supported extensions
-func (s *CodeServer) handleUploadPage(c echo.Context) error {
-	return c.Render(http.StatusOK, "code.html", map[string]interface{}{
-		"ExtMap": extMap,
-	})
+type codeUploadRequest struct {
+	Code     string `json:"code"`
+	Language string `json:"language"`
 }
 
-// handleUpload processes the code upload form
 func (s *CodeServer) handleUpload(c echo.Context) error {
-	// Parse the form data
-	if err := c.Request().ParseForm(); err != nil {
-		c.Logger().Errorf("Error parsing form: %v", err)
-		return c.String(http.StatusBadRequest, "Invalid form data")
+	var req codeUploadRequest
+	if err := c.Bind(&req); err != nil {
+		c.Logger().Errorf("Error parsing code upload request: %v", err)
+		return jsonError(c, http.StatusBadRequest, "Invalid request")
 	}
 
-	code := c.FormValue("code")
-	language := c.FormValue("language")
-
-	if code == "" || language == "" {
-		return c.String(http.StatusBadRequest, "Code or language is empty")
+	if req.Code == "" || req.Language == "" {
+		return jsonError(c, http.StatusBadRequest, "Code or language is empty")
 	}
 
-	ext, ok := extMap[language]
+	ext, ok := extMap[req.Language]
 	if !ok {
-		return c.String(http.StatusBadRequest, "Language not supported")
-	}
-
-	// Create directory structure
-	dirname := filepath.Join("code", language)
-	if err := os.MkdirAll(dirname, os.ModePerm); err != nil {
-		c.Logger().Errorf("Failed to create directory %s: %v", dirname, err)
-		return c.String(http.StatusInternalServerError, "Create directory failed")
+		return jsonError(c, http.StatusBadRequest, "Language not supported")
 	}
 
 	// Generate filename using a short hash of the code
-	filename := GetTimeStamp() + "-" + shortHash(code)
-	filePath := filepath.Join(dirname, filename+ext)
+	filename := GetTimeStamp() + "-" + shortHash(req.Code)
+	filePath := filepath.Join("code", req.Language, filename+ext)
 
 	// Upload the file to the store
-	buffer := bytes.NewBuffer([]byte(code))
-	if err := s.store.UploadFile(context.Background(), buffer, filePath); err != nil {
+	buffer := bytes.NewBufferString(req.Code)
+	if err := s.store.UploadFile(c.Request().Context(), buffer, filePath); err != nil {
 		c.Logger().Errorf("Failed to save code %s: %v", filePath, err)
-		return c.String(http.StatusInternalServerError, "Failed to save code")
+		return jsonError(c, http.StatusInternalServerError, "Failed to save code")
 	}
 
-	// Optionally, you can redirect to the code display page
-	displayURL := fmt.Sprintf("/code/%s/%s", language, filename)
-	return c.Redirect(http.StatusSeeOther, displayURL)
+	displayURL := fmt.Sprintf("/code/%s/%s", req.Language, filename)
+	return c.JSON(http.StatusOK, map[string]string{"url": displayURL})
 }
 
-// handleCodeShow retrieves and displays the uploaded code
 func (s *CodeServer) handleCodeShow(c echo.Context) error {
 	lang := c.Param("lang")
 	hash := c.Param("hash")
 
 	ext, ok := extMap[lang]
 	if !ok {
-		return c.String(http.StatusBadRequest, "Language not supported")
+		return jsonError(c, http.StatusBadRequest, "Language not supported")
 	}
 
 	filePath := filepath.Join("code", lang, hash+ext)
 
 	// Check if the file exists
-	meta, err := s.store.FileMeta(context.Background(), filePath)
+	meta, err := s.store.FileMeta(c.Request().Context(), filePath)
 	if err != nil {
 		c.Logger().Errorf("Error checking file existence %s: %v", filePath, err)
-		return c.String(http.StatusInternalServerError, "Error checking file")
+		return jsonError(c, http.StatusInternalServerError, "Error checking file")
 	}
 
 	if meta == nil {
-		return c.String(http.StatusNotFound, "Code not found")
+		return jsonError(c, http.StatusNotFound, "Code not found")
 	}
 
 	// Download the file content
 	buffer := bytes.NewBuffer(nil)
-	if err := s.store.DownloadFile(context.Background(), buffer, filePath); err != nil {
+	if err := s.store.DownloadFile(c.Request().Context(), buffer, filePath); err != nil {
 		c.Logger().Errorf("Failed to download code %s: %v", filePath, err)
-		return c.String(http.StatusInternalServerError, "Failed to download code")
+		return jsonError(c, http.StatusInternalServerError, "Failed to download code")
 	}
 
-	data := map[string]interface{}{
-		"Code":     buffer.String(),
-		"Language": lang,
-	}
-
-	return c.Render(http.StatusOK, "codeshow.html", data)
+	return c.JSON(http.StatusOK, map[string]string{
+		"language":    lang,
+		"code":        buffer.String(),
+		"downloadUrl": "/download/" + EscapeUrlPath(filePath),
+	})
 }
 
 // shortHash generates a short MD5 hash from the given code string
