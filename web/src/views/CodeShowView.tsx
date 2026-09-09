@@ -29,11 +29,11 @@ export function CodeShowView() {
   }, [data])
 
   if (error) {
-    return <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-slate-500 shadow-md">{error}</p>
+    return <p className="border border-indigo-100 bg-white px-4 py-10 text-center text-sm text-slate-500">{error}</p>
   }
   if (!data) {
     return (
-      <p className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+      <p className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
         <Loader2 size={16} className="animate-spin" /> 加载中…
       </p>
     )
@@ -42,30 +42,33 @@ export function CodeShowView() {
   const lineCount = data.code.split('\n').length
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-md">
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+    <div className="border border-indigo-100 bg-white">
+      <div className="flex items-center justify-between border-b border-indigo-100 px-4 py-3">
         <div className="flex items-center gap-2 text-sm">
-          <span className="rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">{data.language}</span>
+          <span className="font-mono border border-indigo-200 bg-violet-50 px-2 py-0.5 text-xs text-indigo-600">
+            {data.language}
+          </span>
           <span className="text-xs text-slate-400">{lineCount} 行</span>
         </div>
         <div className="flex items-center gap-2">
           <CopyButton text={data.code} label="复制代码" />
           <a
             href={data.downloadUrl}
-            className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-600 transition-colors hover:border-blue-400 hover:text-blue-600"
+            className="flex items-center gap-1.5 border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-600 transition-colors duration-200 hover:border-indigo-600 hover:text-indigo-600"
           >
             <Download size={14} /> 下载代码
           </a>
         </div>
       </div>
 
-      <div className="code-text flex overflow-x-auto bg-slate-900 text-[13px] leading-6 text-slate-200">
-        <div className="select-none border-r border-slate-700/50 px-3 py-3 text-right text-slate-500">
+      {/* 瑞士风页面里唯一的重色块：代码面板 */}
+      <div className="font-mono flex overflow-x-auto bg-[#1E1B4B] text-[13px] leading-6 text-indigo-50">
+        <div className="shrink-0 border-r border-indigo-900/60 px-3 py-3 text-right text-indigo-400 select-none">
           {Array.from({ length: lineCount }, (_, i) => (
             <div key={i}>{i + 1}</div>
           ))}
         </div>
-        <pre className="flex-1 px-4 py-3">
+        <pre className="min-w-0 flex-1 px-4 py-3">
           <code className={`language-${data.language}`} dangerouslySetInnerHTML={{ __html: highlighted }} />
         </pre>
       </div>

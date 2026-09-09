@@ -1,14 +1,37 @@
 @import "tailwindcss";
 
+@theme {
+  /* ui-ux-pro-max: typography #3 Tech Startup — Space Grotesk / DM Sans */
+  --font-display: "Space Grotesk", "DM Sans", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* ui-ux-pro-max: typography #9 Developer Mono — JetBrains Mono */
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/*
+ * ui-ux-pro-max 设计令牌
+ * 配色：colors 库 #2 Micro SaaS（主色 indigo-500，文字用 indigo-600 保证对比度）
+ * 风格：styles 库 #1 Minimalism & Swiss —— 直角、无阴影无渐变、细边框、大留白
+ */
 :root {
   color-scheme: light;
+  --color-primary: #6366F1;
+  --color-primary-strong: #4F46E5;
+  --color-ink: #0F172A;
+  --color-ink-secondary: #475569;
+  --color-line: #E0E7FF;
+  --color-canvas: #F5F3FF;
+  --color-panel-dark: #1E1B4B;
+  --color-action: #059669;
 }
 
 body {
-  @apply bg-slate-100 text-slate-800 antialiased;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  @apply bg-[#F5F3FF] text-slate-900 antialiased;
+  font-family: var(--font-sans);
 }
 
-.code-text {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+/* 瑞士风唯一重色块：代码面板，主题背景由容器提供 */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
 }
