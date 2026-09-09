@@ -1,11 +1,12 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
-	"github.com/spf13/pflag"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -15,20 +16,20 @@ type Config struct {
 
 	InternalHost string
 
-	Resource ResourceConfig
+	Web WebConfig
 
 	Store StoreConfig
+}
+
+type WebConfig struct {
+	// DistDir 为前端构建产物目录，提供静态资源与 SPA 回退
+	DistDir string
 }
 
 type StoreConfig struct {
 	Type  string
 	S3    S3StoreConfig
 	Local LocalStoreConfig
-}
-
-type ResourceConfig struct {
-	StaticDir   string
-	TemplateDir string
 }
 
 type LocalStoreConfig struct {
@@ -43,6 +44,14 @@ type S3StoreConfig struct {
 
 	DisablePathStyle bool
 	DisableSSL       bool
+
+	// PresignDownload 开启后下载返回预签名直链（仅 S3/OSS 存储生效）
+	PresignDownload bool
+	// PresignExpiry 预签名链接有效期
+	PresignExpiry time.Duration
+	// PresignEndpoint 可选：预签名使用的独立 endpoint（如公网入口），
+	// 不填则使用 S3 Endpoint 本身
+	PresignEndpoint string
 }
 
 const (
@@ -70,8 +79,8 @@ func (c *Config) Build() error {
 
 const (
 	defaultUploadDir   = "./uploads"
-	defaultStaticDir   = "./assert"
-	defaultTemplateDir = "./template"
+	defaultWebDistDir  = "./web/dist"
+	defaultPresignExpy = time.Hour
 )
 
 var defaultConfigLoader sync.Once
@@ -86,9 +95,8 @@ func GetDefault(envFileName ...string) *Config {
 			Address:      GetEnvOrDefault("SERVER_LISTEN_ADDRESS", ":8080"),
 			EnableTls:    EnvExist("SERVER_ENABLE_TLS"),
 			InternalHost: GetEnvOrDefault("INTERNAL_HOST", "127.0.0.1"),
-			Resource: ResourceConfig{
-				StaticDir:   GetEnvOrDefault("RESOURCE_STATIC_DIR", defaultStaticDir),
-				TemplateDir: GetEnvOrDefault("RESOURCE_TEMPLATE_DIR", defaultTemplateDir),
+			Web: WebConfig{
+				DistDir: GetEnvOrDefault("WEB_DIST_DIR", defaultWebDistDir),
 			},
 			Store: StoreConfig{
 				Type: os.Getenv("STORE_TYPE"),
@@ -102,11 +110,22 @@ func GetDefault(envFileName ...string) *Config {
 					Bucket:           GetEnvOrDefault("STORE_S3_BUCKET"),
 					DisablePathStyle: EnvExist("STORE_S3_DISABLE_PATH_STYLE"),
 					DisableSSL:       EnvExist("STORE_S3_DISABLE_SSL"),
+					PresignDownload:  EnvExist("STORE_S3_PRESIGN_DOWNLOAD"),
+					PresignExpiry:    parseDurationOrDefault(GetEnvOrDefault("STORE_S3_PRESIGN_EXPIRY", defaultPresignExpy.String()), defaultPresignExpy),
+					PresignEndpoint:  GetEnvOrDefault("STORE_S3_PRESIGN_ENDPOINT"),
 				},
 			},
 		}
 	})
 	return &defaultConfig
+}
+
+func parseDurationOrDefault(s string, def time.Duration) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return def
+	}
+	return d
 }
 
 func EnvExist(envKey string) bool {
@@ -121,7 +140,4 @@ func GetEnvOrDefault(envKey string, defaultValue ...string) string {
 		return defaultValue[0]
 	}
 	return ""
-}
-
-func (c *Config) RegisterFlags(f *pflag.FlagSet) {
 }

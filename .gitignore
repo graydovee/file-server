@@ -27,3 +27,7 @@ uploads
 *.env
 
 tls.yaml
+code/
+node_modules/
+web/dist
+.zcode/
