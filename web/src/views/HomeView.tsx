@@ -1,96 +1,139 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Apple, FolderDown, Code2, Terminal } from 'lucide-react'
-import { CodeLine, CopyButton } from '../components/CopyButton'
+import { ArrowRight, Code2, FolderDown } from 'lucide-react'
+import { CommandBlock } from '../components/CopyButton'
 import { useServerInfo } from '../components/Layout'
 
 type Platform = 'linux' | 'macos' | 'windows'
 
-const PLATFORMS: { key: Platform; label: string; icon: typeof Terminal }[] = [
-  { key: 'linux', label: 'Linux', icon: Terminal },
-  { key: 'macos', label: 'macOS', icon: Apple },
-  { key: 'windows', label: 'Windows', icon: Terminal },
+const PLATFORMS: { key: Platform; label: string }[] = [
+  { key: 'linux', label: 'Linux' },
+  { key: 'macos', label: 'macOS' },
+  { key: 'windows', label: 'Windows' },
 ]
+
+// 上传函数定义与旧版首页保持一致
+const UPLOAD_FUNCTION = (uploadAddress: string) => `# 定义上传文件函数
+upload_file() {
+    local filename="$1"
+    shift
+    curl ${uploadAddress} \\
+        --progress-bar \\
+        -H "X-Filename: $(basename $filename)" \\
+        -T "$filename" \\
+        "$@" | cat
+}`
 
 export function HomeView() {
   const info = useServerInfo()
   const [platform, setPlatform] = useState<Platform>('linux')
 
   if (!info) {
-    return <p className="text-center text-slate-500">正在连接服务器…</p>
+    return <p className="py-16 text-center text-sm text-slate-500">正在连接服务器…</p>
   }
 
-  const isWindows = platform === 'windows'
-  const uploadCmd = isWindows
-    ? `curl.exe -F "file=@本地文件" ${info.uploadAddress}`
-    : `curl -F "file=@本地文件" ${info.uploadAddress}`
-  const downloadCmd = isWindows
-    ? `Invoke-WebRequest -Uri ${info.downloadAddress} -OutFile 保存文件名`
-    : `wget ${info.downloadAddress} -O 保存文件名`
+  const unix = platform === 'linux' || platform === 'macos'
+  const uploadAddress = info.uploadAddress
+  const downloadAddress = info.downloadAddress
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-10">
+      <section>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">
+          多设备之间
+          <span className="text-indigo-600">传输文件</span>
+        </h1>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
+          无需公网 IP 与第三方下载工具，一条命令完成文件上传下载；浏览器可浏览、搜索与批量下载全部文件。
+        </p>
+      </section>
+
+      <section className="grid gap-px border border-indigo-100 bg-indigo-100 sm:grid-cols-2">
         <Link
           to="/download"
-          className="group flex items-center gap-4 rounded-2xl bg-blue-600 p-6 text-white shadow-lg shadow-blue-600/20 transition-transform hover:-translate-y-0.5"
+          className="group flex items-center justify-between gap-4 bg-white p-6 transition-colors duration-200 hover:bg-indigo-600"
         >
-          <FolderDown size={36} className="shrink-0" />
-          <div>
-            <h2 className="text-lg font-semibold">文件下载</h2>
-            <p className="mt-1 text-sm text-blue-100">浏览服务器文件、搜索、批量下载</p>
-          </div>
+          <span className="flex items-center gap-4">
+            <FolderDown size={28} className="shrink-0 text-indigo-600 group-hover:text-white" />
+            <span>
+              <span className="font-display block text-base font-semibold text-slate-900 group-hover:text-white">
+                文件下载
+              </span>
+              <span className="mt-1 block text-sm text-slate-500 group-hover:text-indigo-100">
+                浏览、搜索、批量下载
+              </span>
+            </span>
+          </span>
+          <ArrowRight size={18} className="shrink-0 text-slate-300 transition-colors group-hover:text-white" />
         </Link>
         <Link
           to="/code"
-          className="group flex items-center gap-4 rounded-2xl bg-white p-6 shadow-md transition-transform hover:-translate-y-0.5"
+          className="group flex items-center justify-between gap-4 bg-white p-6 transition-colors duration-200 hover:bg-indigo-600"
         >
-          <Code2 size={36} className="shrink-0 text-violet-600" />
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800">代码分享</h2>
-            <p className="mt-1 text-sm text-slate-500">粘贴代码片段，生成高亮分享链接</p>
-          </div>
+          <span className="flex items-center gap-4">
+            <Code2 size={28} className="shrink-0 text-indigo-600 group-hover:text-white" />
+            <span>
+              <span className="font-display block text-base font-semibold text-slate-900 group-hover:text-white">
+                代码分享
+              </span>
+              <span className="mt-1 block text-sm text-slate-500 group-hover:text-indigo-100">
+                粘贴代码，生成高亮分享链接
+              </span>
+            </span>
+          </span>
+          <ArrowRight size={18} className="shrink-0 text-slate-300 transition-colors group-hover:text-white" />
         </Link>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-md">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-800">命令行上传 / 下载</h2>
-          <div className="flex rounded-lg bg-slate-100 p-1">
-            {PLATFORMS.map(({ key, label, icon: Icon }) => (
+      <section className="border border-indigo-100 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100 px-6 py-4">
+          <h2 className="font-display text-base font-semibold text-slate-900">命令行上传 / 下载</h2>
+          <div className="flex gap-5">
+            {PLATFORMS.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setPlatform(key)}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
-                  platform === key ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                className={`py-1 text-sm transition-colors duration-200 ${
+                  platform === key
+                    ? 'font-medium text-indigo-600 underline decoration-indigo-600 decoration-2 underline-offset-8'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                <Icon size={15} />
                 {label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-600">上传文件</h3>
-              <CopyButton text={uploadCmd} />
-            </div>
-            <CodeLine code={uploadCmd} />
-          </div>
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-600">下载文件</h3>
-              <CopyButton text={downloadCmd} />
-            </div>
-            <CodeLine code={downloadCmd} />
-          </div>
+        <div className="space-y-6 px-6 py-6">
+          {unix ? (
+            <>
+              <CommandBlock label="定义上传函数（复制到终端执行一次）" code={UPLOAD_FUNCTION(uploadAddress)} multiline />
+              <CommandBlock label="上传文件（之后随时可用）" code="upload_file [filename]" />
+              <CommandBlock
+                label="或：直接上传"
+                code={
+                  platform === 'linux'
+                    ? `echo [filePath] | xargs -i curl -F "file=@{}" ${uploadAddress}`
+                    : `echo [filePath] | xargs -I {} curl -F "file=@{}" ${uploadAddress}`
+                }
+              />
+              <CommandBlock label="下载文件" code={`wget ${downloadAddress} -O [filePath]`} />
+            </>
+          ) : (
+            <>
+              <CommandBlock
+                label="上传文件（PowerShell）"
+                code={`curl.exe -T "[filePath]" -H "X-Filename: [filename]" ${uploadAddress}`}
+              />
+              <CommandBlock label="下载文件（PowerShell）" code={`Invoke-WebRequest -Uri ${downloadAddress} -OutFile [filePath]`} />
+            </>
+          )}
         </div>
 
-        <p className="mt-4 text-xs text-slate-400">
-          上传成功后会返回可直接复制的下载命令；替换命令中的"本地文件 / 保存文件名"为实际文件名。
+        <p className="border-t border-indigo-100 bg-violet-50 px-6 py-3 text-xs leading-relaxed text-slate-500">
+          上传成功后会返回可直接复制的下载命令；替换 [filename] / [filePath] 为实际路径。
+          {platform === 'windows' && ' 注：旧版给出的 Invoke-WebRequest 上传命令缺少 X-Filename 会被服务端拒绝，已替换为 curl.exe（Windows 10+ 自带）。'}
         </p>
       </section>
     </div>

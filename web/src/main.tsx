@@ -1,6 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+
+import '@fontsource/space-grotesk/500.css'
+import '@fontsource/space-grotesk/600.css'
+import '@fontsource/space-grotesk/700.css'
+import '@fontsource/dm-sans/400.css'
+import '@fontsource/dm-sans/500.css'
+import '@fontsource/dm-sans/700.css'
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/500.css'
+
 import './index.css'
 import { Layout } from './components/Layout'
 import { HomeView } from './views/HomeView'
@@ -18,7 +28,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/download/*" element={<FilesView />} />
           <Route path="/code" element={<CodeUploadView />} />
           <Route path="/code/:lang/:hash" element={<CodeShowView />} />
-          <Route path="*" element={<p className="text-center text-sm text-slate-500">页面不存在</p>} />
+          <Route path="*" element={<p className="py-16 text-center text-sm text-slate-500">页面不存在</p>} />
         </Routes>
       </Layout>
     </BrowserRouter>
