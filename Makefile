@@ -6,7 +6,7 @@ GIT_COMMIT := $(shell git rev-parse --short HEAD)
 TAG := $(if $(GIT_TAG),$(GIT_TAG),$(shell git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")-$(GIT_COMMIT))
 
 # Image URL to use all building/pushing image targets
-REPO?=harbor.graydove.cn/graydove/fileserver
+REPO?=harbor.graydove.cn/apps/fileserver
 IMG?=$(REPO):$(TAG)
 
 # 只构建真实源码包，避免 uploads/ 等运行时数据目录里的 .go 文件干扰

@@ -12,7 +12,7 @@
 - 测试 / 静态检查：`make test`（= `go vet` + `go test`，限定 `$(PKGS)`）；S3 集成测试在未配置 `STORE_TYPE=s3` 时自动 skip
 - 前端：`cd web && npm ci && npm run build`（typecheck + vitest + vite build）；`npm run dev` 起 vite 并把 `/api /upload /download /delete /archive /script` 代理到本地 Go
 - 本地运行：`go run cmd/main.go`（godotenv 自动加载 `.env`，默认监听 `:8080`）
-- 镜像：`make docker-build`、`make docker-release`（amd64+arm64 双架构，推送 `harbor.graydove.cn/graydove/fileserver`）
+- 镜像：`make docker-build`、`make docker-release`（amd64+arm64 双架构，推送 `harbor.graydove.cn/apps/fileserver`）
 
 ## 目录结构
 
@@ -48,4 +48,4 @@
 - CodeServer 片段文件名 = `时间戳-md5前8位`，扩展名由 `extMap` 白名单限定；展示路由 `/code/:lang/:hash` 是前端路由，API 在 `/api/code/:lang/:hash`。
 - aws-sdk-go-v2 较新版本的 `Size`/`ContentLength` 是 `*int64`，用 `aws.ToInt64` 取值；自定义 endpoint 优先用 `s3.Options.BaseEndpoint` 传递。
 - `.env` / `agora.env` 含真实 S3 凭据，已被 `*.env` 忽略——不要提交，也不要把其中的凭据复制进代码、日志或回复里。
-- 部署：charts 仓库 `apps/fileserver`（ArgoCD 自动同步，ns `file-manager`，域名 `s.qaer.cn`/`s.qaer.io`），镜像发 `harbor.graydove.cn/graydove/fileserver`，chart 探针 GET `/`（SPA 回退保证 200）。
+- 部署：charts 仓库 `apps/fileserver`（ArgoCD 自动同步，ns `file-manager`，域名 `s.qaer.cn`/`s.qaer.io`），镜像发 `harbor.graydove.cn/apps/fileserver`，chart 探针 GET `/`（SPA 回退保证 200）。
