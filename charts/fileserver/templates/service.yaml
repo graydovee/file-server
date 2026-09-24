@@ -2,6 +2,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "fileserver.fullname" . }}
+  annotations:
+    # 验证"chart 模板跟代码走"：改这一行只需推 file-server 仓库，不用动 charts
+    deployment.graydove.cn/chart-home: project-repo
   labels:
     {{- include "fileserver.labels" . | nindent 4 }}
 spec:
