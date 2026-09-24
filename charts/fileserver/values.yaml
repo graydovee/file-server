@@ -11,7 +11,7 @@ image:
   repository: harbor.graydove.cn/apps/fileserver
   pullPolicy: IfNotPresent
   # CI 回写（发版打 tag 时自动更新为 tag 名）
-  tag: sha-15a4b43
+  tag: v0.2.0
 
 args:
   - -t
