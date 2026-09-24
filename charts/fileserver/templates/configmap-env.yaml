@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fileserver.fullname" . }}-env
+  labels:
+    {{- include "fileserver.labels" . | nindent 4 }}
+data:
+  STORE_TYPE: {{ .Values.store.type }}
+  {{- if eq .Values.store.type "s3" }}
+  STORE_S3_ENDPOINT: {{ .Values.store.s3.endpoint }}
+  STORE_S3_ACCESS_KEY_ID: {{ .Values.store.s3.keyId }}
+  STORE_S3_SECRET_ACCESS_KEY: {{ .Values.store.s3.accessKey }}
+  STORE_S3_BUCKET: {{ .Values.store.s3.bucket }}
+  STORE_S3_DISABLE_SSL: "{{ .Values.store.s3.disableSSL }}"
+  {{- if eq (.Values.store.s3.presign.download | toString) "true" }}
+  STORE_S3_PRESIGN_DOWNLOAD: "true"
+  STORE_S3_PRESIGN_EXPIRY: {{ .Values.store.s3.presign.expiry | default "1h" | quote }}
+  {{- with .Values.store.s3.presign.endpoint }}
+  STORE_S3_PRESIGN_ENDPOINT: {{ . }}
+  {{- end }}
+  {{- end }}
+  {{ else if eq .Values.store.type "local" }}
+  STORE_LOCAL_UPLOAD_DIR: {{ .Values.store.local.uploadDir }}
+  {{- end }}
+  {{- if .Values.extraEnv }}
+  {{ .Values.extraEnv | toYaml | nindent 2 }}
+  {{- end }}

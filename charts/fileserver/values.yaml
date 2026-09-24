@@ -1,0 +1,89 @@
+# fileserver chart 默认值：只放"任何环境都成立"的基础默认 + 示例注释。
+#
+# 约定（2026-09-24 起）：
+#   - 本文件（项目仓库）承载 chart 模板与基础默认值
+#   - 集群/环境相关配置与**全部密钥**放 charts 仓库：
+#       apps/fileserver/overlays/values.yaml
+#   - image.tag 由 CI 在打 tag 时回写（也可手工指定），改镜像版本只需改这里
+replicaCount: 1
+
+image:
+  repository: harbor.graydove.cn/apps/fileserver
+  pullPolicy: IfNotPresent
+  # CI 回写（发版打 tag 时自动更新为 tag 名）
+  tag: sha-15a4b43
+
+args:
+  - -t
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 80
+
+# 对外路由（HTTPRoute，Envoy Gateway）。默认关闭；实际 hosts 在 overlay：
+# ingress:
+#   enabled: true
+#   hosts:
+#     - host: files.example.com
+#       paths:
+#         - path: /
+#           pathType: Prefix
+#   tls:
+#     - hosts: [files.example.com]
+#       secretName: example-tls
+ingress:
+  enabled: false
+  annotations: {}
+  hosts: []
+  tls: []
+
+resources: {}
+# resources:
+#   limits:
+#     cpu: 100m
+#     memory: 128Mi
+#   requests:
+#     cpu: 100m
+#     memory: 128Mi
+
+extraEnv: []
+
+# 存储后端。默认本地；S3 端点与凭据属环境配置，放 overlay：
+# store:
+#   type: s3
+#   s3:
+#     bucket: filemanager
+#     endpoint: https://minio.example.svc.cluster.local
+#     keyId: ""
+#     accessKey: ""
+#     disableSSL: "true"
+#     presign:
+#       download: "true"
+#       expiry: 1h
+#       endpoint: https://minio-api.example.com
+store:
+  type: local
+  local:
+    uploadDir: /data/uploads
+    storage: 10Gi
+  s3:
+    bucket: ""
+    keyId: ""
+    accessKey: ""
+    endpoint: ""
+    disableSSL: "true"
+    presign:
+      download: "false"
+      expiry: 1h
+      endpoint: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

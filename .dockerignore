@@ -1,0 +1,6 @@
+# 构建上下文裁剪（Dockerfile 只 COPY web/ cmd/ pkg/ go.mod go.sum，这里再兜一层）
+.git
+.gitea
+charts/
+bin/
+*.md
