@@ -34,11 +34,16 @@ type S3Store struct {
 }
 
 func NewS3Store(cfg *fconfig.S3StoreConfig) (*S3Store, error) {
+	region := cfg.Region
+	if region == "" {
+		region = "auto"
+	}
+
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.DisableSSL}
 
 	awsCfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("auto"),
+		config.WithRegion(region),
 		config.WithHTTPClient(&http.Client{Transport: customTransport}),
 		config.WithBaseEndpoint(cfg.Endpoint),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, "")),
@@ -47,9 +52,13 @@ func NewS3Store(cfg *fconfig.S3StoreConfig) (*S3Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Keep the region explicit after loading the SDK defaults. This matters for
+	// custom S3 endpoints, where the resolver may otherwise retain "auto".
+	awsCfg.Region = region
 
 	newClient := func(endpoint string) *s3.Client {
 		return s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+			o.Region = region
 			if endpoint != "" {
 				o.BaseEndpoint = aws.String(endpoint)
 			}

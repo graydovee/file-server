@@ -57,6 +57,7 @@ func init() {
 	f.StringVar(&cfg.Store.Local.UploadDir, "upload-dir", def.Store.Local.UploadDir, "file upload directory")
 
 	f.StringVar(&cfg.Store.S3.Endpoint, "s3-endpoint", def.Store.S3.Endpoint, "s3 endpoint")
+	f.StringVar(&cfg.Store.S3.Region, "s3-region", def.Store.S3.Region, "s3 signing region")
 	f.StringVar(&cfg.Store.S3.AccessKeyID, "s3-access-key-id", def.Store.S3.AccessKeyID, "s3 access key id")
 	f.StringVar(&cfg.Store.S3.SecretAccessKey, "s3-secret-access-key", def.Store.S3.SecretAccessKey, "s3 secret access key")
 	f.StringVar(&cfg.Store.S3.Bucket, "s3-bucket", def.Store.S3.Bucket, "s3 bucket")

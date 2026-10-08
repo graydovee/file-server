@@ -60,6 +60,7 @@ extraEnv: []
 #   type: s3
 #   s3:
 #     bucket: filemanager
+#     region: auto
 #     endpoint: https://minio.example.svc.cluster.local
 #     keyId: ""
 #     accessKey: ""
@@ -75,6 +76,7 @@ store:
     storage: 10Gi
   s3:
     bucket: ""
+    region: auto
     keyId: ""
     accessKey: ""
     endpoint: ""

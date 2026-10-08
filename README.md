@@ -44,6 +44,7 @@ go run cmd/main.go
 | `STORE_TYPE` | 存储类型：`local` / `s3` | — |
 | `STORE_LOCAL_UPLOAD_DIR` | 本地存储目录 | `./uploads` |
 | `STORE_S3_ENDPOINT` | S3/OSS endpoint | — |
+| `STORE_S3_REGION` | S3 signing region | `auto` |
 | `STORE_S3_ACCESS_KEY_ID` / `STORE_S3_SECRET_ACCESS_KEY` / `STORE_S3_BUCKET` | S3 凭据 | — |
 | `STORE_S3_DISABLE_PATH_STYLE` / `STORE_S3_DISABLE_SSL` | S3 兼容选项 | 关 |
 | `STORE_S3_PRESIGN_DOWNLOAD` | 开启预签名直链下载（仅 s3 生效） | 关 |

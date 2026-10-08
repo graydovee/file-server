@@ -38,6 +38,7 @@ type LocalStoreConfig struct {
 
 type S3StoreConfig struct {
 	Endpoint        string
+	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
 	Bucket          string
@@ -105,6 +106,7 @@ func GetDefault(envFileName ...string) *Config {
 				},
 				S3: S3StoreConfig{
 					Endpoint:         GetEnvOrDefault("STORE_S3_ENDPOINT"),
+					Region:           GetEnvOrDefault("STORE_S3_REGION", "auto"),
 					AccessKeyID:      GetEnvOrDefault("STORE_S3_ACCESS_KEY_ID"),
 					SecretAccessKey:  GetEnvOrDefault("STORE_S3_SECRET_ACCESS_KEY"),
 					Bucket:           GetEnvOrDefault("STORE_S3_BUCKET"),
